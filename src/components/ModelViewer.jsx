@@ -7,6 +7,7 @@ import { Download, Share2, Home, RotateCcw, Maximize2, Minimize2, Copy } from 'l
 const GLBModel = ({ modelUrl, onError, onLoad }) => {
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [localModelUrl, setLocalModelUrl] = useState(null)
   
   // Use proxy server to avoid CORS issues with Tripo 3D CDN
   const proxyUrl = import.meta.env.DEV 
@@ -24,21 +25,25 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
         setIsLoading(true)
         setHasError(false)
         
-        // Test if the URL is accessible first
-        console.log('Testing model URL accessibility...')
-        const testResponse = await fetch(proxyUrl)
-        if (!testResponse.ok) {
-          throw new Error(`HTTP error! status: ${testResponse.status}`)
+        // Download the model through our proxy
+        console.log('Downloading model through proxy...')
+        const response = await fetch(proxyUrl)
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        console.log('Model URL is accessible, status:', testResponse.status)
         
-        // Set loading to false after URL test passes
+        // Create blob and local URL
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        console.log('Model downloaded, created local URL:', url)
+        
         if (isMounted) {
+          setLocalModelUrl(url)
           setIsLoading(false)
         }
         
       } catch (error) {
-        console.error('Error loading model:', error)
+        console.error('Error downloading model:', error)
         if (isMounted) {
           setHasError(true)
           setIsLoading(false)
@@ -51,18 +56,22 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
     
     return () => {
       isMounted = false
+      // Clean up local URL when component unmounts
+      if (localModelUrl) {
+        URL.revokeObjectURL(localModelUrl)
+      }
     }
   }, [proxyUrl, onError])
   
   // If loading or has error, return null (will be handled by parent)
-  if (isLoading || hasError) {
+  if (isLoading || hasError || !localModelUrl) {
     return null
   }
   
-  // Try to load the model with useGLTF
+  // Try to load the model with useGLTF using the local URL
   try {
-    console.log('Attempting to load GLTF from:', proxyUrl)
-    const gltf = useGLTF(proxyUrl)
+    console.log('Attempting to load GLTF from local URL:', localModelUrl)
+    const gltf = useGLTF(localModelUrl)
     console.log('GLTF loaded:', gltf)
     console.log('GLTF scene:', gltf?.scene)
     console.log('GLTF animations:', gltf?.animations)
@@ -87,6 +96,7 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
+      localModelUrl,
       proxyUrl,
       modelUrl
     })
