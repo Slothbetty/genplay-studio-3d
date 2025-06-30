@@ -46,7 +46,7 @@ app.get('/api/download', async (req, res) => {
     }
 
     const buffer = await response.arrayBuffer()
-    const contentType = url.includes('.glb') ? 'application/octet-stream' : 'application/octet-stream'
+    const contentType = url.includes('.glb') ? 'model/gltf-binary' : 'application/octet-stream'
     
     console.log(`Serving model with Content-Type: ${contentType}, size: ${buffer.byteLength} bytes`)
     
