@@ -52,14 +52,15 @@ apiClient.interceptors.response.use(
 class Tripo3DService {
   constructor() {
     this.apiKey = import.meta.env.VITE_TRIPO_AI_API_KEY
-    this.baseURL = import.meta.env.VITE_TRIPO_AI_API_URL || 'https://api.tripo3d.ai/v2'
     
-    // Use proxy in development
+    // Use the same proxy configuration as the main apiClient
     const isDevelopment = import.meta.env.DEV
-    const proxyURL = isDevelopment ? 'http://localhost:3001/api' : null
+    const proxyURL = isDevelopment 
+      ? 'http://localhost:3001/api' 
+      : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com/api')
     
     this.apiClient = axios.create({
-      baseURL: proxyURL || this.baseURL,
+      baseURL: proxyURL,
       timeout: 30000,
       headers: {
         'Authorization': this.apiKey ? `Bearer ${this.apiKey}` : '',
