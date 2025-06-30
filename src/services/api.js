@@ -67,6 +67,12 @@ class Tripo3DService {
       ? 'http://localhost:3001/api' 
       : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com/api')
     
+    console.log('Tripo3DService constructor:', {
+      isDevelopment,
+      proxyURL,
+      apiKey: this.apiKey ? 'Set' : 'Not set'
+    })
+    
     this.apiClient = axios.create({
       baseURL: proxyURL,
       timeout: 30000,
