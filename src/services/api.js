@@ -4,7 +4,7 @@ import axios from 'axios'
 const isDevelopment = import.meta.env.DEV
 const baseURL = isDevelopment 
   ? 'http://localhost:3001/api'  // Use local proxy in development
-  : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com/api')
+  : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api`
 
 // Debug logging
 console.log('API Configuration:', {
@@ -65,7 +65,7 @@ class Tripo3DService {
     const isDevelopment = import.meta.env.DEV
     const proxyURL = isDevelopment 
       ? 'http://localhost:3001/api' 
-      : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com/api')
+      : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api`
     
     console.log('Tripo3DService constructor:', {
       isDevelopment,
