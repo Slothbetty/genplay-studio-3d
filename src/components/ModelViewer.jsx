@@ -61,10 +61,17 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
   
   // Try to load the model with useGLTF
   try {
+    console.log('Attempting to load GLTF from:', proxyUrl)
     const gltf = useGLTF(proxyUrl)
     console.log('GLTF loaded:', gltf)
+    console.log('GLTF scene:', gltf?.scene)
+    console.log('GLTF animations:', gltf?.animations)
     
-    if (!gltf || !gltf.scene) {
+    if (!gltf) {
+      throw new Error('GLTF loader returned null or undefined')
+    }
+    
+    if (!gltf.scene) {
       throw new Error('No scene data received from GLTF loader')
     }
     
@@ -77,6 +84,12 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
     
   } catch (error) {
     console.error('Failed to load model with useGLTF:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      proxyUrl,
+      modelUrl
+    })
     setHasError(true)
     if (onError) onError(error)
     return null
