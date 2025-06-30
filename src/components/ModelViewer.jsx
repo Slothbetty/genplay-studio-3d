@@ -1,6 +1,7 @@
 import React, { useState, Suspense, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, Environment, useGLTF } from '@react-three/drei'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { Download, Share2, Home, RotateCcw, Maximize2, Minimize2, Copy } from 'lucide-react'
 
 // GLB Model component that loads the actual generated model
@@ -8,6 +9,7 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [localModelUrl, setLocalModelUrl] = useState(null)
+  const [useAlternativeLoader, setUseAlternativeLoader] = useState(false)
   
   // Use proxy server to avoid CORS issues with Tripo 3D CDN
   const proxyUrl = import.meta.env.DEV 
@@ -34,6 +36,17 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
         
         // Create blob and local URL
         const blob = await response.blob()
+        console.log('Blob details:', {
+          size: blob.size,
+          type: blob.type,
+          lastModified: blob.lastModified
+        })
+        
+        // Check if blob has content
+        if (blob.size === 0) {
+          throw new Error('Downloaded blob is empty')
+        }
+        
         const url = URL.createObjectURL(blob)
         console.log('Model downloaded, created local URL:', url)
         
@@ -71,7 +84,18 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
   // Try to load the model with useGLTF using the local URL
   try {
     console.log('Attempting to load GLTF from local URL:', localModelUrl)
-    const gltf = useGLTF(localModelUrl)
+    
+    let gltf
+    if (useAlternativeLoader) {
+      // Use useLoader as fallback
+      console.log('Using useLoader with GLTFLoader...')
+      gltf = useLoader(GLTFLoader, localModelUrl)
+    } else {
+      // Try useGLTF first
+      console.log('Using useGLTF...')
+      gltf = useGLTF(localModelUrl, true) // Add true for draco decoding
+    }
+    
     console.log('GLTF loaded:', gltf)
     console.log('GLTF scene:', gltf?.scene)
     console.log('GLTF animations:', gltf?.animations)
@@ -98,8 +122,18 @@ const GLBModel = ({ modelUrl, onError, onLoad }) => {
       stack: error.stack,
       localModelUrl,
       proxyUrl,
-      modelUrl
+      modelUrl,
+      useAlternativeLoader
     })
+    
+    // If first attempt failed, try alternative loader
+    if (!useAlternativeLoader) {
+      console.log('First attempt failed, trying alternative loader...')
+      setUseAlternativeLoader(true)
+      return null // Return null to trigger re-render
+    }
+    
+    // If both attempts failed, show error
     setHasError(true)
     if (onError) onError(error)
     return null
