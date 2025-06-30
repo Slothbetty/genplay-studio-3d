@@ -1,143 +1,61 @@
 import React, { useState, Suspense, useEffect } from 'react'
-import { Canvas, useLoader } from '@react-three/fiber'
+import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, Environment, useGLTF } from '@react-three/drei'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { Download, Share2, Home, RotateCcw, Maximize2, Minimize2, Copy } from 'lucide-react'
 
 // GLB Model component that loads the actual generated model
 const GLBModel = ({ modelUrl, onError, onLoad }) => {
+  const [gltf, setGltf] = useState(null)
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [localModelUrl, setLocalModelUrl] = useState(null)
-  const [useAlternativeLoader, setUseAlternativeLoader] = useState(false)
-  
-  // Use proxy server to avoid CORS issues with Tripo 3D CDN
-  const proxyUrl = import.meta.env.DEV 
-    ? `http://localhost:3001/api/download?url=${encodeURIComponent(modelUrl)}`
-    : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api/download?url=${encodeURIComponent(modelUrl)}`
-  
-  console.log('Original model URL:', modelUrl)
-  console.log('Proxy URL:', proxyUrl)
-  
+  const { scene } = useThree()
+
   useEffect(() => {
     let isMounted = true
-    
-    const loadModel = async () => {
-      try {
-        setIsLoading(true)
-        setHasError(false)
-        
-        // Download the model through our proxy
-        console.log('Downloading model through proxy...')
-        const response = await fetch(proxyUrl)
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        // Create blob and local URL
-        const blob = await response.blob()
-        console.log('Blob details:', {
-          size: blob.size,
-          type: blob.type,
-          lastModified: blob.lastModified
-        })
-        
-        // Check if blob has content
-        if (blob.size === 0) {
-          throw new Error('Downloaded blob is empty')
-        }
-        
-        const url = URL.createObjectURL(blob)
-        console.log('Model downloaded, created local URL:', url)
-        
-        if (isMounted) {
-          setLocalModelUrl(url)
-          setIsLoading(false)
-        }
-        
-      } catch (error) {
-        console.error('Error downloading model:', error)
+    setIsLoading(true)
+    setHasError(false)
+    setGltf(null)
+    const proxyUrl = import.meta.env.DEV 
+      ? `http://localhost:3001/api/download?url=${encodeURIComponent(modelUrl)}`
+      : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api/download?url=${encodeURIComponent(modelUrl)}`
+    const loader = new GLTFLoader()
+    fetch(proxyUrl)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        return res.arrayBuffer()
+      })
+      .then(arrayBuffer => {
+        loader.parse(arrayBuffer, '',
+          (gltf) => {
+            if (isMounted) {
+              setGltf(gltf)
+              setIsLoading(false)
+              if (onLoad) onLoad()
+            }
+          },
+          (error) => {
+            if (isMounted) {
+              setHasError(true)
+              setIsLoading(false)
+              if (onError) onError(error)
+            }
+          }
+        )
+      })
+      .catch(error => {
         if (isMounted) {
           setHasError(true)
           setIsLoading(false)
           if (onError) onError(error)
         }
-      }
-    }
-    
-    loadModel()
-    
-    return () => {
-      isMounted = false
-      // Clean up local URL when component unmounts
-      if (localModelUrl) {
-        URL.revokeObjectURL(localModelUrl)
-      }
-    }
-  }, [proxyUrl, onError])
-  
-  // If loading or has error, return null (will be handled by parent)
-  if (isLoading || hasError || !localModelUrl) {
-    return null
-  }
-  
-  // Try to load the model with useGLTF using the local URL
-  try {
-    console.log('Attempting to load GLTF from local URL:', localModelUrl)
-    
-    let gltf
-    if (useAlternativeLoader) {
-      // Use useLoader as fallback
-      console.log('Using useLoader with GLTFLoader...')
-      gltf = useLoader(GLTFLoader, localModelUrl)
-    } else {
-      // Try useGLTF first
-      console.log('Using useGLTF...')
-      gltf = useGLTF(localModelUrl, true) // Add true for draco decoding
-    }
-    
-    console.log('GLTF loaded:', gltf)
-    console.log('GLTF scene:', gltf?.scene)
-    console.log('GLTF animations:', gltf?.animations)
-    
-    if (!gltf) {
-      throw new Error('GLTF loader returned null or undefined')
-    }
-    
-    if (!gltf.scene) {
-      throw new Error('No scene data received from GLTF loader')
-    }
-    
-    // Call onLoad when model is successfully loaded
-    if (onLoad) {
-      onLoad()
-    }
-    
-    return <primitive object={gltf.scene} />
-    
-  } catch (error) {
-    console.error('Failed to load model with useGLTF:', error)
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      localModelUrl,
-      proxyUrl,
-      modelUrl,
-      useAlternativeLoader
-    })
-    
-    // If first attempt failed, try alternative loader
-    if (!useAlternativeLoader) {
-      console.log('First attempt failed, trying alternative loader...')
-      setUseAlternativeLoader(true)
-      return null // Return null to trigger re-render
-    }
-    
-    // If both attempts failed, show error
-    setHasError(true)
-    if (onError) onError(error)
-    return null
-  }
+      })
+    return () => { isMounted = false }
+  }, [modelUrl, onError, onLoad])
+
+  if (isLoading) return null
+  if (hasError || !gltf) return null
+  return <primitive object={gltf.scene} />
 }
 
 // Fallback component while model is loading
@@ -148,6 +66,26 @@ const LoadingModel = () => {
       <meshStandardMaterial color="#6b7280" wireframe />
     </mesh>
   )
+}
+
+// Add ErrorBoundary to catch Suspense errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    if (this.props.onError) this.props.onError(error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{ color: 'red' }}>Model failed to load: {this.state.error?.message || 'Unknown error'}</div>;
+    }
+    return this.props.children;
+  }
 }
 
 const ModelViewer = ({ modelUrl, format, className = '', onReset }) => {
@@ -353,15 +291,17 @@ const ModelViewer = ({ modelUrl, format, className = '', onReset }) => {
                 <directionalLight position={[10, 10, 5]} intensity={1} />
                 <pointLight position={[-10, -10, -5]} intensity={0.5} />
                 
-                <Suspense fallback={<LoadingModel />}>
-                  {modelUrl && (
-                    <GLBModel 
-                      modelUrl={modelUrl} 
-                      onError={handleModelError}
-                      onLoad={handleModelLoad}
-                    />
-                  )}
-                </Suspense>
+                <ErrorBoundary onError={handleModelError}>
+                  <Suspense fallback={<LoadingModel />}>
+                    {modelUrl && (
+                      <GLBModel 
+                        modelUrl={modelUrl} 
+                        onError={handleModelError}
+                        onLoad={handleModelLoad}
+                      />
+                    )}
+                  </Suspense>
+                </ErrorBoundary>
                 
                 <OrbitControls
                   enablePan={true}
