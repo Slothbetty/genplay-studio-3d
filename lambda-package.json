@@ -1,0 +1,25 @@
+{
+  "name": "genplay-studio-3d-lambda-proxy",
+  "version": "1.0.0",
+  "description": "Lambda function proxy for GenPlay Studio 3D API calls",
+  "main": "lambda-proxy.js",
+  "scripts": {
+    "package": "zip -r lambda-proxy.zip lambda-proxy.js node_modules package.json"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "proxy",
+    "api",
+    "3d",
+    "tripo"
+  ],
+  "author": "GenPlay Studio",
+  "license": "MIT"
+} 
