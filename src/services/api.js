@@ -6,6 +6,14 @@ const baseURL = isDevelopment
   ? 'http://localhost:3001/api'  // Use local proxy in development
   : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com/api')
 
+// Debug logging
+console.log('API Configuration:', {
+  isDevelopment,
+  baseURL,
+  proxyURL: import.meta.env.VITE_RENDER_PROXY_URL,
+  apiKey: import.meta.env.VITE_TRIPO_AI_API_KEY ? 'Set' : 'Not set'
+})
+
 const API_CONFIG = {
   baseURL: baseURL,
   timeout: 300000, // 5 minutes for model generation
