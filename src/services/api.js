@@ -416,6 +416,42 @@ class Tripo3DService {
       throw new Error(`Failed to delete generation: ${error.response?.data?.message || error.message}`)
     }
   }
+
+  /**
+   * Convert a model to another format using Tripo 3D API
+   * @param {Object} params - Conversion parameters
+   * @param {string} params.original_model_task_id - The task_id of the original model
+   * @param {string} params.format - Target format (GLTF, USDZ, FBX, OBJ, STL, 3MF)
+   * @param {Object} params.options - Optional conversion options (quad, face_limit, etc.)
+   * @returns {Promise<Object>} Conversion task result (task_id)
+   */
+  async convertModel({ original_model_task_id, format, options = {} }) {
+    try {
+      if (!this.apiKey) {
+        throw new Error('API key is required for model conversion')
+      }
+      if (!original_model_task_id) {
+        throw new Error('original_model_task_id is required for model conversion')
+      }
+      if (!format) {
+        throw new Error('Target format is required for model conversion')
+      }
+      const requestData = {
+        type: 'convert_model',
+        format,
+        original_model_task_id,
+        ...options
+      }
+      const response = await this.apiClient.post('/task', requestData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      return response.data
+    } catch (error) {
+      throw new Error(`Model conversion failed: ${error.response?.data?.message || error.message}`)
+    }
+  }
 }
 
 // Mock API service for development (when API key is not available)

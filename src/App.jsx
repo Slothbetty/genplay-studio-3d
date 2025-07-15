@@ -380,6 +380,7 @@ function App() {
                 modelUrl={generatedModel.url}
                 format={generatedModel.format}
                 className="max-w-4xl mx-auto"
+                modelTaskId={generatedModel.id}
               />
               
               <div className="flex justify-center space-x-4">

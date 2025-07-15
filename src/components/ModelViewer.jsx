@@ -3,6 +3,7 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber'
 import { OrbitControls, Environment, useGLTF } from '@react-three/drei'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { Download, Share2, Home, RotateCcw, Maximize2, Minimize2, Copy } from 'lucide-react'
+import { tripo3DService } from '../services/api'
 
 // GLB Model component that loads the actual generated model
 const GLBModel = ({ modelUrl, onError, onLoad }) => {
@@ -88,12 +89,24 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-const ModelViewer = ({ modelUrl, format, className = '', onReset }) => {
+const ModelViewer = ({ modelUrl, format, className = '', onReset, modelTaskId }) => {
   const [autoRotate, setAutoRotate] = useState(true)
   const [viewMode, setViewMode] = useState('perspective')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [modelError, setModelError] = useState(null)
   const [isModelLoading, setIsModelLoading] = useState(true)
+  const [downloadFormat, setDownloadFormat] = useState(format || 'glb')
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  const formatOptions = [
+    { value: 'glb', label: 'GLB' },
+    { value: 'gltf', label: 'GLTF' },
+    { value: 'usdz', label: 'USDZ' },
+    { value: 'fbx', label: 'FBX' },
+    { value: 'obj', label: 'OBJ' },
+    { value: 'stl', label: 'STL' },
+    { value: '3mf', label: '3MF' },
+  ]
 
   console.log('ModelViewer received modelUrl:', modelUrl)
   console.log('ModelViewer received format:', format)
@@ -110,64 +123,68 @@ const ModelViewer = ({ modelUrl, format, className = '', onReset }) => {
   }
 
   const handleDownload = async () => {
+    setIsDownloading(true)
     try {
-      // Use the proxy server to download the model
-      const proxyUrl = import.meta.env.DEV 
-        ? `http://localhost:3001/api/download?url=${encodeURIComponent(modelUrl)}`
-        : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api/download?url=${encodeURIComponent(modelUrl)}`
-      
-      // Show loading state
-      const button = document.querySelector('button[onclick*="handleDownload"]')
-      const originalText = 'Download Model'
-      if (button) {
-        const span = button.querySelector('span')
-        if (span) {
-          span.textContent = 'Downloading...'
+      let downloadTaskId = modelTaskId
+      let downloadUrl = modelUrl
+      let downloadExt = downloadFormat
+      // If user selects a different format, convert first
+      if (downloadFormat && downloadFormat.toLowerCase() !== (format || 'glb').toLowerCase()) {
+        // Call convertModel and wait for completion
+        showToast('Converting model to ' + downloadFormat.toUpperCase() + '...', 'info')
+        const conversion = await tripo3DService.convertModel({
+          original_model_task_id: modelTaskId,
+          format: downloadFormat.toUpperCase(),
+        })
+        const conversionTaskId = conversion.data?.task_id || conversion.task_id
+        if (!conversionTaskId) throw new Error('Conversion failed: No task_id returned')
+        // Wait for conversion to complete
+        const result = await tripo3DService.monitorTaskStatus(conversionTaskId)
+        if (result.data?.status !== 'success') {
+          throw new Error('Conversion failed or no model URL returned')
         }
+        let convertedUrl =
+          result.data?.result?.model?.url ||
+          result.data?.output?.model ||
+          result.data?.result?.pbr_model?.url;
+        if (!convertedUrl) {
+          throw new Error('Conversion succeeded but no model URL found in response');
+        }
+        // If the type is zip, set extension to zip
+        let ext = downloadFormat;
+        if (
+          (result.data?.result?.model?.type === 'zip') ||
+          (result.data?.result?.type === 'zip')
+        ) {
+          ext = 'zip';
+        }
+        downloadTaskId = conversionTaskId;
+        downloadUrl = convertedUrl;
+        downloadExt = ext;
       }
-      
-      // Fetch the model through our proxy
+      // Download the model
+      const proxyUrl = import.meta.env.DEV
+        ? `http://localhost:3001/api/download?url=${encodeURIComponent(downloadUrl)}`
+        : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api/download?url=${encodeURIComponent(downloadUrl)}`
       const response = await fetch(proxyUrl)
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status}`)
       }
-      
-      // Create blob and download
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `genplay-model-${Date.now()}.${format || 'glb'}`
+      link.download = `genplay-model-${Date.now()}.${downloadExt}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-      
-      // Reset button text
-      if (button) {
-        const span = button.querySelector('span')
-        if (span) {
-          span.textContent = 'Downloaded!'
-          setTimeout(() => {
-            span.textContent = originalText
-          }, 2000)
-        }
-      }
-      
       showToast('Model downloaded successfully!', 'success')
-      
     } catch (error) {
       console.error('Download failed:', error)
-      showToast('Failed to download model', 'error')
-      
-      // Reset button text on error
-      const button = document.querySelector('button[onclick*="handleDownload"]')
-      if (button) {
-        const span = button.querySelector('span')
-        if (span) {
-          span.textContent = 'Download Model'
-        }
-      }
+      showToast('Failed to download model: ' + error.message, 'error')
+    } finally {
+      setIsDownloading(false)
     }
   }
 
@@ -417,16 +434,29 @@ const ModelViewer = ({ modelUrl, format, className = '', onReset }) => {
             {/* Action Buttons */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-              
               <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="downloadFormat" className="text-sm font-medium text-gray-700">Format:</label>
+                  <select
+                    id="downloadFormat"
+                    value={downloadFormat}
+                    onChange={e => setDownloadFormat(e.target.value)}
+                    className="input-field"
+                    disabled={isDownloading}
+                  >
+                    {formatOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   onClick={handleDownload}
                   className="w-full btn-primary flex items-center justify-center space-x-2"
+                  disabled={isDownloading}
                 >
                   <Download size={16} />
-                  <span>Download Model</span>
+                  <span>{isDownloading ? 'Processing...' : 'Download Model'}</span>
                 </button>
-                
                 {onReset && (
                   <button
                     onClick={onReset}
