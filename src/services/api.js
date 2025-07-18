@@ -584,3 +584,20 @@ export const tripo3DService = hasApiKey
   : new MockTripo3DService()
 
 export default tripo3DService 
+
+export async function editImageWithAI(imageFile, prompt) {
+  const formData = new FormData();
+  formData.append("image", imageFile);
+  formData.append("prompt", prompt);
+  formData.append("model", "gpt-image-1");
+
+  const response = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+    },
+    body: formData
+  });
+  if (!response.ok) throw new Error("Failed to edit image");
+  return await response.json();
+} 

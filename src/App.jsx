@@ -3,10 +3,23 @@ import Header from './components/Header'
 import ImageUpload from './components/ImageUpload'
 import ModelGenerator from './components/ModelGenerator'
 import ModelViewer from './components/ModelViewer'
+import ImageEdit from './components/ImageEdit'
 import { tripo3DService } from './services/api'
 
+const STYLE_OPTIONS = [
+  {
+    id: 'funko',
+    name: 'Funko Pop Style Image Generator',
+    prompt: 'generate a image from this photo in funko pop style with no background.',
+    image: 'https://genplay-studio-3d.onrender.com/images/funko-pop-sample.png' // Replace with actual image URL
+  },
+  // Add more styles here as needed
+];
+
 function App() {
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [selectedStyle, setSelectedStyle] = useState(null)
+  const [selectedStylePrompt, setSelectedStylePrompt] = useState("")
   const [selectedImage, setSelectedImage] = useState(null)
   const [uploadedFile, setUploadedFile] = useState(null)
   const [uploadedFileId, setUploadedFileId] = useState(null)
@@ -38,6 +51,7 @@ function App() {
   const [error, setError] = useState(null)
   const [availableFormats, setAvailableFormats] = useState([])
   const [generationOptionsConfig, setGenerationOptionsConfig] = useState({})
+  const [editedImageUrl, setEditedImageUrl] = useState(null)
 
   // Load available formats and generation options on component mount
   useEffect(() => {
@@ -249,7 +263,7 @@ function App() {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
-            {[1, 2, 3].map((step) => (
+            {[0, 1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -258,9 +272,9 @@ function App() {
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
-                  {step}
+                  {step + 1}
                 </div>
-                {step < 3 && (
+                {step < 4 && (
                   <div
                     className={`w-12 h-1 mx-2 ${
                       currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
@@ -271,13 +285,19 @@ function App() {
             ))}
           </div>
           <div className="flex justify-center mt-2 space-x-8 text-sm text-gray-600">
+            <span className={currentStep >= 0 ? 'text-blue-600 font-medium' : ''}>
+              Select Style
+            </span>
             <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
-              Upload Image
+              Image Generate
             </span>
             <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
-              Generate
+              Upload Image
             </span>
             <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
+              3D Generate
+            </span>
+            <span className={currentStep >= 4 ? 'text-blue-600 font-medium' : ''}>
               View Model
             </span>
           </div>
@@ -302,7 +322,62 @@ function App() {
 
         {/* Step Content */}
         <div className="max-w-4xl mx-auto">
+          {currentStep === 0 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Select Style
+                </h2>
+                <p className="text-gray-600">
+                  Choose a style for your image. Each style has a unique, fixed prompt.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {STYLE_OPTIONS.map((style) => (
+                  <button
+                    key={style.id}
+                    className={`border rounded-lg p-4 text-left transition-all duration-200 ${selectedStyle === style.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`}
+                    onClick={() => {
+                      setSelectedStyle(style.id);
+                      setSelectedStylePrompt(style.prompt);
+                      setCurrentStep(1);
+                    }}
+                  >
+                    {style.image && (
+                      <img src={style.image} alt={style.name} className="w-20 h-20 object-contain mb-2 mx-auto" />
+                    )}
+                    <div className="font-bold text-lg mb-1">{style.name}</div>
+                    <div className="text-gray-600 text-sm">{style.prompt}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Image Generate
+                </h2>
+                <p className="text-gray-600">
+                  Upload an image. The selected style will be used to generate your image.
+                </p>
+              </div>
+              <ImageEdit prompt={selectedStylePrompt} onImageEdited={(url) => { setEditedImageUrl(url); }} hidePrompt />
+              {editedImageUrl && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    className="btn-primary"
+                    onClick={() => setCurrentStep(2)}
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentStep === 2 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -322,7 +397,7 @@ function App() {
               
               <div className="flex justify-center">
                 <button
-                  onClick={handleNext}
+                  onClick={() => setCurrentStep(3)}
                   disabled={!canProceedToStep2}
                   className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -332,11 +407,11 @@ function App() {
             </div>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Generate 3D Model
+                  3D Generate
                 </h2>
                 <p className="text-gray-600">
                   Configure generation options and create your 3D model
@@ -365,7 +440,7 @@ function App() {
             </div>
           )}
 
-          {currentStep === 3 && generatedModel && (
+          {currentStep === 4 && generatedModel && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">

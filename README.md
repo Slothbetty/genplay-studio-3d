@@ -26,7 +26,7 @@ A modern web application for generating 3D models using AI, built with React, Th
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd "GenPlay Studio 3D"
+   cd genplay-studio-3d
    ```
 2. **Install dependencies**
    ```bash
