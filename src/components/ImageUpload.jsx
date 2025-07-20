@@ -98,10 +98,7 @@ const ImageUpload = ({ onImageSelect, onUploadComplete, shouldUpload = false, cl
       }, 200)
 
       // Upload file to Tripo 3D
-      console.log('Starting upload with options:', uploadOptions)
       const uploadResult = await tripo3DService.uploadFile(selectedFile, uploadOptions)
-      
-      console.log('Upload response:', uploadResult)
       
       clearInterval(progressInterval)
       setUploadProgress(100)
@@ -147,7 +144,6 @@ const ImageUpload = ({ onImageSelect, onUploadComplete, shouldUpload = false, cl
         onUploadComplete(standardizedResult)
       }
 
-      console.log('File uploaded successfully:', standardizedResult)
     } catch (error) {
       console.error('Upload error details:', error)
       setUploadError(error.message)

@@ -118,11 +118,8 @@ function App() {
   }
 
   const handleUploadComplete = (uploadResult) => {
-    console.log('handleUploadComplete called with:', uploadResult)
     setUploadedFile(uploadResult)
     setUploadedFileId(uploadResult.id)
-    console.log('File uploaded successfully:', uploadResult)
-    console.log('uploadedFileId set to:', uploadResult.id)
     
     // Move to next step after successful upload
     setCurrentStep(2)
@@ -133,72 +130,55 @@ function App() {
   }
 
   const handleGenerateModel = async () => {
-    console.log('handleGenerateModel called')
-    console.log('selectedImage:', selectedImage)
-    console.log('textPrompt:', textPrompt)
-    console.log('uploadedFileId:', uploadedFileId)
-    console.log('uploadedFile:', uploadedFile)
-    console.log('generationOptions:', generationOptions)
-    
     if (!selectedImage) {
       setError('Please select an image')
-      return
+      return;
     }
 
-    if (!uploadedFileId) {
-      console.error('uploadedFileId is null or undefined')
-      console.error('uploadedFile:', uploadedFile)
-      setError('Image must be uploaded to Tripo 3D before generation')
-      return
-    }
-
-    setIsGenerating(true)
-    setGenerationProgress(0)
-    setError(null)
-    setGeneratedModel(null)
+    setIsGenerating(true);
+    setGenerationProgress(0);
+    setError(null);
+    setGeneratedModel(null);
 
     try {
-      console.log('Calling tripo3DService.generateModel...')
-      // Start generation
-      const generationResult = await tripo3DService.generateModel({
-        fileToken: uploadedFile.image_token,
-        prompt: textPrompt,
-        options: generationOptions
-      })
+      // Upload the file first
+      const uploadResult = await tripo3DService.uploadFile(selectedImage);
+      const uploadedFileId = uploadResult.data?.image_token;
 
-      console.log('Generation started:', generationResult)
-      console.log('Generation result keys:', Object.keys(generationResult))
-      console.log('Generation result data:', generationResult.data)
-      console.log('Generation result data keys:', Object.keys(generationResult.data))
-
-      // Check if we have a valid generation ID
-      const generationId = generationResult.data?.id || generationResult.data?.task_id || generationResult.id || generationResult.task_id
-      if (!generationId) {
-        throw new Error('No generation ID received from API')
+      if (!uploadedFileId) {
+        throw new Error('Failed to upload image for 3D generation');
       }
 
-      console.log('Using generation ID:', generationId)
+      // Start generation
+      const fileToken = uploadResult.data?.image_token;
+      const generationResult = await tripo3DService.generateModel({
+        fileToken,
+        prompt: textPrompt,
+        options: generationOptions
+      });
+
+      // Check if we have a valid generation ID
+      const generationId = generationResult.data?.id || generationResult.data?.task_id || generationResult.id || generationResult.task_id;
+      if (!generationId) {
+        throw new Error('No generation ID received from API');
+      }
 
       // Monitor task status using HTTP polling with progress updates
       const finalResult = await tripo3DService.monitorTaskStatus(generationId, (progressData) => {
-        console.log('Progress update:', progressData)
         if (progressData.progress !== undefined) {
-          setGenerationProgress(progressData.progress)
+          setGenerationProgress(progressData.progress);
         }
-      })
-      
-      console.log('Generation completed:', finalResult)
+      });
 
       // Check if generation was successful
-      const taskData = finalResult.data
+      const taskData = finalResult.data;
       if (taskData.status === 'success' && taskData.result?.pbr_model?.url) {
-        console.log('Generation completed successfully, moving to step 3')
-        setIsGenerating(false)
-        setGenerationProgress(100)
-        
+        setIsGenerating(false);
+        setGenerationProgress(100);
+
         // Use the PBR model URL directly - no need to download
-        const modelUrl = taskData.result.pbr_model.url
-        
+        const modelUrl = taskData.result.pbr_model.url;
+
         setGeneratedModel({
           id: taskData.task_id,
           url: modelUrl,
@@ -206,21 +186,20 @@ function App() {
           prompt: textPrompt,
           image: selectedImage,
           createdAt: new Date().toISOString()
-        })
-        
-        setCurrentStep(3) // Move to viewer
+        });
+
+        setCurrentStep(3); // Move to viewer
       } else if (taskData.status === 'failed') {
-        setIsGenerating(false)
-        setError('Model generation failed. Please try again.')
+        setIsGenerating(false);
+        setError('Model generation failed. Please try again.');
       } else {
-        setIsGenerating(false)
-        setError('Generation completed but no model was produced.')
+        setIsGenerating(false);
+        setError('Generation completed but no model was produced.');
       }
 
     } catch (error) {
-      console.error('Generation error:', error)
-      setIsGenerating(false)
-      setError(`Generation failed: ${error.message}`)
+      setIsGenerating(false);
+      setError(`Generation failed: ${error.message}`);
     }
   }
 
@@ -253,7 +232,7 @@ function App() {
   }
 
   const canProceedToStep2 = selectedImage !== null
-  const canGenerate = selectedImage !== null && !isGenerating && uploadedFileId !== null
+  const canGenerate = (selectedImage !== null && !isGenerating && uploadedFileId !== null) || (editedImageUrl !== null && !isGenerating)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -263,7 +242,7 @@ function App() {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
-            {[0, 1, 2, 3, 4].map((step) => (
+            {[0, 1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -274,7 +253,7 @@ function App() {
                 >
                   {step + 1}
                 </div>
-                {step < 4 && (
+                {step < 3 && (
                   <div
                     className={`w-12 h-1 mx-2 ${
                       currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
@@ -292,12 +271,9 @@ function App() {
               Image Generate
             </span>
             <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
-              Upload Image
-            </span>
-            <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
               3D Generate
             </span>
-            <span className={currentStep >= 4 ? 'text-blue-600 font-medium' : ''}>
+            <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
               View Model
             </span>
           </div>
@@ -363,14 +339,33 @@ function App() {
                   Upload an image. The selected style will be used to generate your image.
                 </p>
               </div>
-              <ImageEdit prompt={selectedStylePrompt} onImageEdited={(url) => { setEditedImageUrl(url); }} hidePrompt />
+              <ImageEdit 
+                prompt={selectedStylePrompt} 
+                onImageEdited={(url) => { 
+                  setEditedImageUrl(url);
+                  // Convert data URL to File and store in selectedImage
+                  if (url) {
+                    const arr = url.split(',');
+                    const mime = arr[0].match(/:(.*?);/)[1];
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                      u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    const file = new File([u8arr], 'generated-image.png', { type: mime });
+                    setSelectedImage(file);
+                  }
+                }} 
+                hidePrompt 
+              />
               {editedImageUrl && (
                 <div className="flex justify-center mt-4">
                   <button
                     className="btn-primary"
                     onClick={() => setCurrentStep(2)}
                   >
-                    Continue
+                    Continue to 3D Generate
                   </button>
                 </div>
               )}
@@ -378,36 +373,6 @@ function App() {
           )}
 
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Upload Reference Image
-                </h2>
-                <p className="text-gray-600">
-                  Upload a high-quality image to help the AI understand what you want to generate
-                </p>
-              </div>
-              
-              <ImageUpload
-                onImageSelect={handleImageSelect}
-                onUploadComplete={handleUploadComplete}
-                shouldUpload={shouldUploadImage}
-                className="max-w-2xl mx-auto"
-              />
-              
-              <div className="flex justify-center">
-                <button
-                  onClick={() => setCurrentStep(3)}
-                  disabled={!canProceedToStep2}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -440,7 +405,7 @@ function App() {
             </div>
           )}
 
-          {currentStep === 4 && generatedModel && (
+          {currentStep === 3 && generatedModel && (
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">

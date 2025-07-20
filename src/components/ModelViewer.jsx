@@ -108,9 +108,6 @@ const ModelViewer = ({ modelUrl, format, className = '', onReset, modelTaskId })
     { value: '3mf', label: '3MF' },
   ]
 
-  console.log('ModelViewer received modelUrl:', modelUrl)
-  console.log('ModelViewer received format:', format)
-
   const handleModelError = (error) => {
     console.error('Model error:', error)
     setModelError(error.message)

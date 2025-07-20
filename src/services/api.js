@@ -7,12 +7,6 @@ const baseURL = isDevelopment
   : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api`
 
 // Debug logging
-console.log('API Configuration:', {
-  isDevelopment,
-  baseURL,
-  proxyURL: import.meta.env.VITE_RENDER_PROXY_URL,
-  apiKey: import.meta.env.VITE_TRIPO_AI_API_KEY ? 'Set' : 'Not set'
-})
 
 const API_CONFIG = {
   baseURL: baseURL,
@@ -29,11 +23,9 @@ const apiClient = axios.create(API_CONFIG)
 // Request interceptor for logging
 apiClient.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method?.toUpperCase(), config.url)
     return config
   },
   (error) => {
-    console.error('API Request Error:', error)
     return Promise.reject(error)
   }
 )
@@ -41,7 +33,6 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.status, response.config.url)
     return response
   },
   (error) => {
@@ -67,11 +58,6 @@ class Tripo3DService {
       ? 'http://localhost:3001/api' 
       : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api`
     
-    console.log('Tripo3DService constructor:', {
-      isDevelopment,
-      proxyURL,
-      apiKey: this.apiKey ? 'Set' : 'Not set'
-    })
     
     this.apiClient = axios.create({
       baseURL: proxyURL,
@@ -179,10 +165,6 @@ class Tripo3DService {
   async generateModel({ fileToken, prompt, options = {} }) {
     let requestData // Declare outside try block for error logging
     
-    console.log('=== generateModel called ===')
-    console.log('fileToken:', fileToken)
-    console.log('prompt:', prompt)
-    console.log('options:', options)
     
     try {
       if (!this.apiKey) {
@@ -224,17 +206,14 @@ class Tripo3DService {
         }
       })
 
-      console.log('Generation request data:', requestData)
-      console.log('Generation request data (JSON):', JSON.stringify(requestData, null, 2))
-      console.log('Options passed to generateModel:', options)
-
+      
       const response = await this.apiClient.post('/task', requestData, {
         headers: {
           'Content-Type': 'application/json'
         }
       })
 
-      console.log('Generation response:', response.data)
+      
       return response.data
     } catch (error) {
       console.error('Generation error details:', {
@@ -277,7 +256,7 @@ class Tripo3DService {
     while (attempts < maxAttempts) {
       try {
         const result = await this.getTaskStatus(taskId)
-        console.log(`Task status check ${attempts + 1}:`, result)
+        
 
         // Call progress callback if provided
         if (onProgress && result.data) {
@@ -335,7 +314,6 @@ class Tripo3DService {
       
       if (modelIdOrUrl.startsWith('http')) {
         // Direct URL provided - use proxy to avoid CORS
-        console.log('Downloading model from direct URL via proxy:', modelIdOrUrl)
         const encodedUrl = encodeURIComponent(modelIdOrUrl)
         response = await this.apiClient.get(`/download?url=${encodedUrl}`, {
           responseType: 'blob'
@@ -343,7 +321,6 @@ class Tripo3DService {
         return response.data
       } else {
         // Task ID provided, use proxy server
-        console.log('Downloading model via proxy for task ID:', modelIdOrUrl)
         response = await this.apiClient.get(`/task/${modelIdOrUrl}/download`, {
           responseType: 'blob'
         })

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { editImageWithAI } from "../services/api";
 
-export default function ImageEdit({ onImageEdited }) {
+export default function ImageEdit({ prompt, onImageEdited, hidePrompt }) {
   const [image, setImage] = useState(null);
-  const [prompt, setPrompt] = useState("");
   const [resultUrl, setResultUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -60,10 +59,6 @@ export default function ImageEdit({ onImageEdited }) {
         <label className="block mb-1 font-medium">Upload Image</label>
         <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} required />
       </div>
-      <div>
-        <label className="block mb-1 font-medium">Edit Prompt</label>
-        <input type="text" value={prompt} onChange={handlePromptChange} placeholder="Describe your edit..." className="w-full border rounded px-2 py-1" required />
-      </div>
       <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
         {loading ? "Editing..." : "Edit Image"}
       </button>
@@ -72,7 +67,7 @@ export default function ImageEdit({ onImageEdited }) {
           <div className="flex items-center space-x-3 mb-3">
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <div>
-              <p className="font-medium text-blue-900">Generating your edited image...</p>
+              <p className="font-medium text-blue-900">Generating your image...</p>
               <p className="text-sm text-blue-700">{fakeProgress}% complete</p>
             </div>
           </div>

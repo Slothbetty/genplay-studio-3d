@@ -7,15 +7,28 @@ const ModelGenerator = ({ selectedImage, textPrompt, options, onOptionsChange, o
   // Create preview URL when selectedImage changes
   useEffect(() => {
     if (selectedImage) {
-      const previewUrl = URL.createObjectURL(selectedImage)
-      setImagePreview(previewUrl)
-      
-      // Cleanup function to revoke the URL when component unmounts
-      return () => {
-        URL.revokeObjectURL(previewUrl)
+      let previewUrl;
+
+      if (typeof selectedImage === 'string') {
+        // It's a data URL string
+        previewUrl = selectedImage;
+        setImagePreview(previewUrl);
+      } else if (selectedImage instanceof File) {
+        // It's a File object
+        previewUrl = URL.createObjectURL(selectedImage);
+        setImagePreview(previewUrl);
+
+        // Cleanup function to revoke the URL when component unmounts
+        return () => {
+          URL.revokeObjectURL(previewUrl);
+        };
+      } else if (selectedImage.url) {
+        // It's an object with a url property
+        previewUrl = selectedImage.url;
+        setImagePreview(previewUrl);
       }
     }
-  }, [selectedImage])
+  }, [selectedImage]);
 
   return (
     <div className={`max-w-4xl mx-auto ${className}`}>
@@ -89,14 +102,9 @@ const ModelGenerator = ({ selectedImage, textPrompt, options, onOptionsChange, o
             <div className="flex justify-center pt-4">
               <button
                 onClick={() => {
-                  console.log('Generate Model button clicked')
-                  console.log('canGenerate:', canGenerate)
-                  console.log('isGenerating:', isGenerating)
                   if (canGenerate && !isGenerating) {
-                    console.log('Calling onGenerate function')
                     onGenerate()
                   } else {
-                    console.log('Button is disabled or already generating')
                   }
                 }}
                 className="btn-primary flex items-center space-x-2"

@@ -33,22 +33,16 @@ app.get('/api/download', async (req, res) => {
     if (!url) {
       return res.status(400).json({ error: 'URL parameter is required' })
     }
-
-    console.log('Download request for URL:', url)
     
     const fullUrl = url.startsWith('http') ? url : `https://${url}`
-    console.log(`Downloading model from: ${fullUrl}`)
     
     const response = await fetch(fullUrl)
     if (!response.ok) {
-      console.error(`Download failed with status: ${response.status}`)
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
     const buffer = await response.arrayBuffer()
     const contentType = url.includes('.glb') ? 'model/gltf-binary' : 'application/octet-stream'
-    
-    console.log(`Serving model with Content-Type: ${contentType}, size: ${buffer.byteLength} bytes`)
     
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Length', buffer.byteLength)
@@ -58,7 +52,6 @@ app.get('/api/download', async (req, res) => {
     
     res.send(Buffer.from(buffer))
   } catch (error) {
-    console.error('Download error:', error)
     res.status(500).json({ 
       error: 'Download failed', 
       message: error.message,
@@ -78,13 +71,10 @@ const proxyOptions = {
     if (process.env.VITE_TRIPO_AI_API_KEY) {
       proxyReq.setHeader('Authorization', `Bearer ${process.env.VITE_TRIPO_AI_API_KEY}`)
     }
-    console.log(`Proxying: ${req.method} ${req.path} -> ${proxyReq.path}`)
   },
   onProxyRes: (proxyRes, req, res) => {
-    console.log(`Response: ${proxyRes.statusCode} for ${req.path}`)
   },
   onError: (err, req, res) => {
-    console.error('Proxy Error:', err)
     res.status(500).json({ error: 'Proxy error', message: err.message })
   }
 }
