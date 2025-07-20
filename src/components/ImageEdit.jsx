@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { editImageWithAI } from "../services/api";
 
-export default function ImageEdit({ prompt, onImageEdited, hidePrompt }) {
+export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack = () => {} }) {
   const [image, setImage] = useState(null);
   const [resultUrl, setResultUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -59,9 +59,18 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt }) {
         <label className="block mb-1 font-medium">Upload Image</label>
         <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} required />
       </div>
-      <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
-        {loading ? "Editing..." : "Edit Image"}
-      </button>
+      <div className="flex space-x-2">
+        <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
+          {loading ? "Generating..." : "Generate Image"}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onGoBack}
+        >
+          Go Back
+        </button>
+      </div>
       {loading && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
           <div className="flex items-center space-x-3 mb-3">

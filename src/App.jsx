@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from 'react'
+import { STYLE_OPTIONS } from './styleOptions'
 import Header from './components/Header'
 import ImageUpload from './components/ImageUpload'
 import ModelGenerator from './components/ModelGenerator'
 import ModelViewer from './components/ModelViewer'
 import ImageEdit from './components/ImageEdit'
 import { tripo3DService } from './services/api'
-
-const STYLE_OPTIONS = [
-  {
-    id: 'funko',
-    name: 'Funko Pop Style Image Generator',
-    prompt: 'generate a image from this photo in funko pop style with no background.',
-    image: 'https://genplay-studio-3d.onrender.com/images/funko-pop-sample.png' // Replace with actual image URL
-  },
-  // Add more styles here as needed
-];
 
 function App() {
   const [currentStep, setCurrentStep] = useState(0)
@@ -323,7 +314,6 @@ function App() {
                       <img src={style.image} alt={style.name} className="w-20 h-20 object-contain mb-2 mx-auto" />
                     )}
                     <div className="font-bold text-lg mb-1">{style.name}</div>
-                    <div className="text-gray-600 text-sm">{style.prompt}</div>
                   </button>
                 ))}
               </div>
@@ -358,6 +348,11 @@ function App() {
                   }
                 }} 
                 hidePrompt 
+                onGoBack={() => {
+                  setEditedImageUrl(null);
+                  setSelectedImage(null);
+                  setCurrentStep(0);
+                }}
               />
               {editedImageUrl && (
                 <div className="flex justify-center mt-4">
