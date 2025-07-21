@@ -69,15 +69,7 @@ const ModelGenerator = ({ selectedImage, textPrompt, options, onOptionsChange, o
             </div>
 
             {/* AI Info */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Zap className="w-5 h-5 text-purple-600" />
-                <h4 className="font-medium text-purple-900">Tripo AI Processing</h4>
-              </div>
-              <p className="text-sm text-purple-700">
-                Our advanced AI combines image analysis, text understanding, and 3D generation for optimal results.
-              </p>
-            </div>
+            {/* Removed Tripo AI Processing branding */}
 
             {/* Progress Bar */}
             {isGenerating && (

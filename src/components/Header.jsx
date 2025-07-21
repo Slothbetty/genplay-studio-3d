@@ -17,11 +17,6 @@ const Header = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-2 text-sm text-gray-600">
-              <Sparkles className="w-4 h-4" />
-              <span>Powered by Tripo AI</span>
-            </div>
-            
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-green-600 font-medium">Online</span>

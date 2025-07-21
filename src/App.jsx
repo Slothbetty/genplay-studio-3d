@@ -300,22 +300,40 @@ function App() {
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {STYLE_OPTIONS.map((style) => (
-                  <button
-                    key={style.id}
-                    className={`border rounded-lg p-4 text-left transition-all duration-200 ${selectedStyle === style.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`}
-                    onClick={() => {
-                      setSelectedStyle(style.id);
-                      setSelectedStylePrompt(style.prompt);
-                      setCurrentStep(1);
-                    }}
-                  >
-                    {style.image && (
-                      <img src={style.image} alt={style.name} className="w-20 h-20 object-contain mb-2 mx-auto" />
-                    )}
-                    <div className="font-bold text-lg mb-1">{style.name}</div>
-                  </button>
-                ))}
+                {STYLE_OPTIONS.map((style) => {
+                  const isOther = style.id === 'other';
+                  return (
+                    <button
+                      key={style.id}
+                      className={
+                        isOther
+                          ? 'border-2 border-dashed border-gray-400 bg-gray-100 text-center flex flex-col items-center justify-center opacity-70 cursor-not-allowed p-6'
+                          : `border rounded-lg p-4 text-left transition-all duration-200 ${selectedStyle === style.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`
+                      }
+                      onClick={() => {
+                        if (!isOther) {
+                          setSelectedStyle(style.id);
+                          setSelectedStylePrompt(style.prompt);
+                          setCurrentStep(1);
+                        }
+                      }}
+                      disabled={isOther}
+                      style={isOther ? { pointerEvents: 'none' } : {}}
+                    >
+                      {isOther ? (
+                        <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M8 12h8M12 8v8" /></svg>
+                      ) : (
+                        style.image && (
+                          <img src={style.image} alt={style.name} className="w-20 h-20 object-contain mb-2 mx-auto" />
+                        )
+                      )}
+                      <div className="font-bold text-lg mb-1">{style.name}</div>
+                      {style.description && (
+                        <div className="text-sm text-gray-500">{style.description}</div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
