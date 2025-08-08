@@ -13,6 +13,12 @@ export const STYLE_OPTIONS = [
     image: 'https://genplay-studio-3d.onrender.com/images/funko-pop-sample.png'
   },
   {
+    id: 'outline',
+    name: 'Outline Art',
+    prompt: 'Convert the provided image into a clean black line art illustration, with sharp outlines, no shading or colors, minimal white background.',
+    image: null
+  },
+  {
     id: 'other',
     name: 'Other Styles',
     prompt: '',
