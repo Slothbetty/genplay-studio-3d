@@ -43,6 +43,7 @@ function App() {
   const [availableFormats, setAvailableFormats] = useState([])
   const [generationOptionsConfig, setGenerationOptionsConfig] = useState({})
   const [editedImageUrl, setEditedImageUrl] = useState(null)
+  const [svgConverted, setSvgConverted] = useState(false)
 
   // Load available formats and generation options on component mount
   useEffect(() => {
@@ -205,6 +206,7 @@ function App() {
     setError(null)
     setGenerationProgress(0)
     setIsGenerating(false)
+    setSvgConverted(false)
   }
 
   const handleNext = () => {
@@ -258,9 +260,9 @@ function App() {
             <span className={currentStep >= 0 ? 'text-blue-600 font-medium' : ''}>
               Select Style
             </span>
-            <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
-              Image Generate
-            </span>
+                         <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
+               Image Generate
+             </span>
             <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
               3D Generate
             </span>
@@ -339,50 +341,65 @@ function App() {
           )}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Image Generate
-                </h2>
-                <p className="text-gray-600">
-                  Upload an image. The selected style will be used to generate your image.
-                </p>
-              </div>
-              <ImageEdit 
-                prompt={selectedStylePrompt} 
-                existingImageUrl={editedImageUrl}
-                onImageEdited={(url) => { 
-                  setEditedImageUrl(url);
-                  // Convert data URL to File and store in selectedImage
-                  if (url) {
-                    const arr = url.split(',');
-                    const mime = arr[0].match(/:(.*?);/)[1];
-                    const bstr = atob(arr[1]);
-                    let n = bstr.length;
-                    const u8arr = new Uint8Array(n);
-                    while (n--) {
-                      u8arr[n] = bstr.charCodeAt(n);
-                    }
-                    const file = new File([u8arr], 'generated-image.png', { type: mime });
-                    setSelectedImage(file);
-                  }
-                }} 
-                hidePrompt 
-                onGoBack={() => {
-                  setEditedImageUrl(null);
-                  setSelectedImage(null);
-                  setCurrentStep(0);
-                }}
-              />
-              {editedImageUrl && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    className="btn-primary"
-                    onClick={() => setCurrentStep(2)}
-                  >
-                    Continue to 3D Generate
-                  </button>
-                </div>
-              )}
+                             <div className="text-center">
+                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                   Image Generate
+                 </h2>
+                 <p className="text-gray-600">
+                   {selectedStyle === 'outline' 
+                     ? 'Upload an image. The selected style will be used to generate your image, then convert it to SVG format.'
+                     : 'Upload an image. The selected style will be used to generate your image.'
+                   }
+                 </p>
+               </div>
+                             <ImageEdit 
+                 prompt={selectedStylePrompt} 
+                 existingImageUrl={editedImageUrl}
+                 styleId={selectedStyle}
+                 onImageEdited={(url) => { 
+                   setEditedImageUrl(url);
+                   // Convert data URL to File and store in selectedImage
+                   if (url) {
+                     const arr = url.split(',');
+                     const mime = arr[0].match(/:(.*?);/)[1];
+                     const bstr = atob(arr[1]);
+                     let n = bstr.length;
+                     const u8arr = new Uint8Array(n);
+                     while (n--) {
+                       u8arr[n] = bstr.charCodeAt(n);
+                     }
+                     const file = new File([u8arr], 'generated-image.png', { type: mime });
+                     setSelectedImage(file);
+                   }
+                 }}
+                 onSvgConverted={(svgContent) => {
+                   setSvgConverted(true);
+                 }}
+                 hidePrompt 
+                 onGoBack={() => {
+                   setEditedImageUrl(null);
+                   setSelectedImage(null);
+                   if (selectedStyle === 'outline') {
+                     setSvgConverted(false);
+                   }
+                   setCurrentStep(0);
+                 }}
+               />
+                             {editedImageUrl && selectedStyle === 'outline' && !svgConverted && (
+                 <div className="flex justify-center mt-4">
+                   <p className="text-gray-600 text-sm mb-2">Convert your image to SVG to continue</p>
+                 </div>
+               )}
+               {(editedImageUrl && selectedStyle !== 'outline') || (editedImageUrl && selectedStyle === 'outline' && svgConverted) ? (
+                 <div className="flex justify-center mt-4">
+                   <button
+                     className="btn-primary"
+                     onClick={() => setCurrentStep(2)}
+                   >
+                     Continue to 3D Generate
+                   </button>
+                 </div>
+               ) : null}
             </div>
           )}
 
