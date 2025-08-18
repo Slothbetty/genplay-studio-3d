@@ -349,6 +349,7 @@ function App() {
               </div>
               <ImageEdit 
                 prompt={selectedStylePrompt} 
+                existingImageUrl={editedImageUrl}
                 onImageEdited={(url) => { 
                   setEditedImageUrl(url);
                   // Convert data URL to File and store in selectedImage

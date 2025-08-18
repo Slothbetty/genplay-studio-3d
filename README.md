@@ -35,8 +35,8 @@ A modern web application for generating 3D models using AI, built with React, Th
 3. **Set up environment variables** (optional)
    ```bash
    # Create .env file
-   echo "VITE_TRIPO_AI_API_KEY=your_api_key_here" > .env
-   echo "VITE_TRIPO_AI_API_URL=https://platform.tripo3d.ai/api/v1" >> .env
+   echo "VITE_TRIPO_AI_API_KEY=your_api_key_here" > .env.development
+   echo "VITE_TRIPO_AI_API_URL=https://platform.tripo3d.ai/api/v1" >> .env.development
    ```
 
 ## 🖥️ Local Development

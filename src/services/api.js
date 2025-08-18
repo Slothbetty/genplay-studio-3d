@@ -563,6 +563,19 @@ export const tripo3DService = hasApiKey
 export default tripo3DService 
 
 export async function editImageWithAI(imageFile, prompt) {
+  // Debug: Log all environment variables
+  const env = import.meta.env;
+  
+  // First validate that we have an API key
+  const apiKey = env.VITE_OPENAI_API_KEY;
+  console.log('Raw API Key:', apiKey); // This will help us debug
+  
+  if (!apiKey) {
+    console.error('API key is missing. All env vars:', env);
+    throw new Error("OpenAI API key is not configured. Please check your .env file.");
+  }
+
+  // Create a mask.png file that matches the input image dimensions
   const formData = new FormData();
   formData.append("image", imageFile);
   formData.append("prompt", prompt);
@@ -571,7 +584,7 @@ export async function editImageWithAI(imageFile, prompt) {
   const response = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+      "Authorization": `Bearer ${apiKey}`
     },
     body: formData
   });
