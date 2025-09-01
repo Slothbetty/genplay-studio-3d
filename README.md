@@ -4,8 +4,12 @@ A modern web application for generating 3D models using AI, built with React, Th
 
 ## ✨ Features
 
-- **🎨 Image Upload**: Drag & drop interface for uploading reference images
-- **📝 Text-to-3D**: Generate 3D models using AI with image and text prompts
+- **🎨 Style Selection**: Choose from Funko Pop Style, Outline Art, and other styles
+- **🖼️ Image Upload**: Drag & drop interface for uploading reference images
+- **🔄 Dynamic Image Management**: Upload, change, or remove reference images directly in the Model Generator
+- **📝 Text-to-3D**: Generate 3D models using AI with image and text prompts (Funko Pop style)
+- **✏️ Editable Prompts**: Modify text descriptions for 3D model generation on the fly
+- **🎨 SVG Board Editor**: Customize SVG placement on boards with adjustable thickness and size (Outline Art style)
 - **🔄 Real-time Progress**: Live progress tracking during model generation
 - **🎮 3D Viewer**: Interactive 360-degree model viewing with Three.js
 - **📁 File Management**: Upload, organize, and manage files on Tripo 3D platform
@@ -66,8 +70,10 @@ src/
 │   ├── Header.jsx      # Application header
 │   ├── ImageUpload.jsx # Image upload with drag & drop
 │   ├── TextInput.jsx   # Text prompt input
-│   ├── ModelGenerator.jsx # Generation options and controls
-│   └── ModelViewer.jsx # 3D model viewer
+│   ├── ModelGenerator.jsx # Generation options, image upload, and prompt editing
+│   ├── ModelViewer.jsx # 3D model viewer
+│   ├── ImageEdit.jsx   # AI image editing and SVG conversion
+│   └── SvgBoardEditor.jsx # SVG board customization with thickness and positioning
 ├── services/
 │   └── api.js          # Tripo 3D API service
 ├── config/

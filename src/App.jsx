@@ -5,6 +5,8 @@ import ImageUpload from './components/ImageUpload'
 import ModelGenerator from './components/ModelGenerator'
 import ModelViewer from './components/ModelViewer'
 import ImageEdit from './components/ImageEdit'
+import SvgBoardEditor from './components/SvgBoardEditor'
+import SvgBoard3DViewer from './components/SvgBoard3DViewer'
 import { tripo3DService } from './services/api'
 
 function App() {
@@ -44,6 +46,9 @@ function App() {
   const [generationOptionsConfig, setGenerationOptionsConfig] = useState({})
   const [editedImageUrl, setEditedImageUrl] = useState(null)
   const [svgConverted, setSvgConverted] = useState(false)
+  const [svgBoardReady, setSvgBoardReady] = useState(false)
+  const [svgBoardImage, setSvgBoardImage] = useState(null)
+  const [svgBoardData, setSvgBoardData] = useState(null)
 
   // Load available formats and generation options on component mount
   useEffect(() => {
@@ -122,6 +127,12 @@ function App() {
   }
 
   const handleGenerateModel = async () => {
+    // For Outline Art, we don't need to generate a 3D model - the SVG board is the result
+    if (selectedStyle === 'outline') {
+      setError('Outline Art Style uses SVG Board Editor instead of 3D generation')
+      return;
+    }
+    
     if (!selectedImage) {
       setError('Please select an image')
       return;
@@ -207,6 +218,9 @@ function App() {
     setGenerationProgress(0)
     setIsGenerating(false)
     setSvgConverted(false)
+    setSvgBoardReady(false)
+    setSvgBoardImage(null)
+    setSvgBoardData(null)
   }
 
   const handleNext = () => {
@@ -225,7 +239,8 @@ function App() {
   }
 
   const canProceedToStep2 = selectedImage !== null
-  const canGenerate = (selectedImage !== null && !isGenerating && uploadedFileId !== null) || (editedImageUrl !== null && !isGenerating)
+  const canGenerate = (selectedImage !== null && !isGenerating) || 
+                     (editedImageUrl !== null && !isGenerating)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -235,6 +250,7 @@ function App() {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
+            {/* 4 steps for all styles: Select Style, Image Generate, 3D Generate, View Model */}
             {[0, 1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
                 <div
@@ -260,9 +276,9 @@ function App() {
             <span className={currentStep >= 0 ? 'text-blue-600 font-medium' : ''}>
               Select Style
             </span>
-                         <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
-               Image Generate
-             </span>
+            <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
+              Image Generate
+            </span>
             <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
               3D Generate
             </span>
@@ -341,17 +357,32 @@ function App() {
           )}
           {currentStep === 1 && (
             <div className="space-y-6">
-                             <div className="text-center">
-                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                   Image Generate
-                 </h2>
-                 <p className="text-gray-600">
-                   {selectedStyle === 'outline' 
-                     ? 'Upload an image. The selected style will be used to generate your image, then convert it to SVG format.'
-                     : 'Upload an image. The selected style will be used to generate your image.'
-                   }
-                 </p>
-               </div>
+              {/* Style-specific header for Funko Pop and Outline Art */}
+              {(selectedStyle === 'funko' || selectedStyle === 'outline') && (
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-1">
+                    {selectedStyle === 'funko' ? '🎯 Funko Pop Style' : '✏️ Outline Art Style'}
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    {selectedStyle === 'funko' 
+                      ? 'Creating a Funko Pop-inspired character from your image'
+                      : 'Generating outline art and converting to SVG format'
+                    }
+                  </p>
+                </div>
+              )}
+              
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Image Generate
+                </h2>
+                <p className="text-gray-600">
+                  {selectedStyle === 'outline' 
+                    ? 'Upload an image. The selected style will be used to generate your image, then convert it to SVG format.'
+                    : 'Upload an image. The selected style will be used to generate your image.'
+                  }
+                </p>
+              </div>
                              <ImageEdit 
                  prompt={selectedStylePrompt} 
                  existingImageUrl={editedImageUrl}
@@ -394,7 +425,9 @@ function App() {
                  <div className="flex justify-center mt-4">
                    <button
                      className="btn-primary"
-                     onClick={() => setCurrentStep(2)}
+                     onClick={() => {
+                       setCurrentStep(2) // Go to 3D Generate step
+                     }}
                    >
                      Continue to 3D Generate
                    </button>
@@ -403,8 +436,21 @@ function App() {
             </div>
           )}
 
-          {currentStep === 2 && (
+          {/* 3D Generate Step for Non-Outline Styles */}
+          {currentStep === 2 && selectedStyle !== 'outline' && (
             <div className="space-y-6">
+              {/* Style-specific header for Funko Pop */}
+              {selectedStyle === 'funko' && (
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-1">
+                    🎯 Funko Pop Style
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    Generating a 3D Funko Pop-style model from your image
+                  </p>
+                </div>
+              )}
+              
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   3D Generate
@@ -426,6 +472,8 @@ function App() {
                 generationOptionsConfig={generationOptionsConfig}
                 canGenerate={canGenerate}
                 className="max-w-2xl mx-auto"
+                onImageChange={handleImageSelect}
+                onTextPromptChange={setTextPrompt}
               />
               
               <div className="flex justify-center space-x-4">
@@ -436,8 +484,69 @@ function App() {
             </div>
           )}
 
-          {currentStep === 3 && generatedModel && (
+          {/* 3D Generate Step for Outline Art */}
+          {currentStep === 2 && selectedStyle === 'outline' && (
             <div className="space-y-6">
+              {/* Style-specific header for Outline Art */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
+                <h3 className="text-lg font-semibold text-purple-900 mb-1">
+                  ✏️ Outline Art Style
+                </h3>
+                <p className="text-sm text-purple-700">
+                  Create your 3D SVG board with customizable thickness and size
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  3D Generate - SVG Board
+                </h2>
+                <p className="text-gray-600">
+                  Customize your SVG placement on the board and download as a 3D model
+                </p>
+              </div>
+              
+              <SvgBoardEditor
+                svgContent={editedImageUrl}
+                onBoardGenerated={(boardData) => {
+                  setSvgBoardImage(boardData.image)
+                  setSvgBoardData(boardData)
+                  setSvgBoardReady(true)
+                }}
+                className="max-w-4xl mx-auto"
+              />
+              
+              <div className="flex justify-center space-x-4">
+                <button onClick={() => setCurrentStep(1)} className="btn-secondary">
+                  Back
+                </button>
+                {svgBoardReady && (
+                  <button
+                    onClick={() => setCurrentStep(3)}
+                    className="btn-primary"
+                  >
+                    Continue to View Model
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* View Model Step for Non-Outline Styles */}
+          {currentStep === 3 && generatedModel && selectedStyle !== 'outline' && (
+            <div className="space-y-6">
+              {/* Style-specific header for Funko Pop */}
+              {selectedStyle === 'funko' && (
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-1">
+                    🎯 Funko Pop Style
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    Your Funko Pop-style 3D model is ready!
+                  </p>
+                </div>
+              )}
+              
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Your 3D Model
@@ -456,6 +565,71 @@ function App() {
               
               <div className="flex justify-center space-x-4">
                 <button onClick={handleBack} className="btn-secondary">
+                  Back
+                </button>
+                <button onClick={handleReset} className="btn-primary">
+                  Start Over
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* View Model Step for Outline Art */}
+          {currentStep === 3 && svgBoardReady && selectedStyle === 'outline' && (
+            <div className="space-y-6">
+              {/* Style-specific header for Outline Art */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
+                <h3 className="text-lg font-semibold text-purple-900 mb-1">
+                  ✏️ Outline Art Style
+                </h3>
+                <p className="text-sm text-purple-700">
+                  Your outline art 3D model is ready!
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Your SVG Board - 3D Model
+                </h2>
+                <p className="text-gray-600">
+                  View your customized SVG board in 3D and download as an STL file
+                </p>
+              </div>
+              
+              {/* 3D Model Viewer */}
+              {svgBoardData && (
+                <SvgBoard3DViewer
+                  svgBoardImage={svgBoardImage}
+                  boardSize={svgBoardData.boardSize}
+                  svgSize={svgBoardData.svgSize}
+                  thickness={svgBoardData.thickness}
+                  svgPosition={svgBoardData.svgPosition}
+                  svgRotation={svgBoardData.svgRotation}
+                  svgScale={svgBoardData.svgScale}
+                  className="max-w-4xl mx-auto"
+                />
+              )}
+              
+              {/* 2D Preview */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 text-center">2D Preview</h4>
+                {svgBoardImage && (
+                  <div className="text-center">
+                    <img 
+                      src={svgBoardImage} 
+                      alt="Generated SVG Board" 
+                      className="mx-auto border border-gray-300 rounded-lg"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                    <p className="text-sm text-gray-600 mt-2">
+                      Your SVG board with custom thickness and positioning
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-center space-x-4">
+                <button onClick={() => setCurrentStep(2)} className="btn-secondary">
                   Back
                 </button>
                 <button onClick={handleReset} className="btn-primary">
