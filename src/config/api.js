@@ -6,6 +6,17 @@ export const API_CONFIG = {
   // API Key (set in environment variables)
   apiKey: import.meta.env.VITE_TRIPO_AI_API_KEY,
   
+  // Convertio API Configuration
+  convertio: {
+    baseURL: 'https://api.convertio.co',
+    apiKey: import.meta.env.VITE_CONVERTIO_API_KEY,
+    endpoints: {
+      convert: '/convert',
+      status: '/convert/:id/status',
+      download: '/convert/:id/dl'
+    }
+  },
+  
   // Request timeout (5 minutes for model generation)
   timeout: 300000,
   
@@ -84,6 +95,11 @@ export const isDevelopment = import.meta.env.DEV
 // API availability check
 export const isApiAvailable = () => {
   return !!(API_CONFIG.apiKey && API_CONFIG.baseURL)
+}
+
+// Convertio API availability check
+export const isConvertioAvailable = () => {
+  return !!(API_CONFIG.convertio.apiKey)
 }
 
 // Get the correct endpoint URL

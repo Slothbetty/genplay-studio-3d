@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { editImageWithAI } from "../services/api";
+import { API_CONFIG, isConvertioAvailable } from "../config/api";
 
 export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack = () => {}, existingImageUrl = null, onSvgConverted = () => {}, styleId = null }) {
   const [image, setImage] = useState(null);
@@ -10,6 +11,8 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
   const [svgContent, setSvgContent] = useState(null);
   const [isConvertingToSvg, setIsConvertingToSvg] = useState(false);
   const [svgConverted, setSvgConverted] = useState(false);
+  const [directUploadImage, setDirectUploadImage] = useState(null);
+  const [showDirectUpload, setShowDirectUpload] = useState(false);
 
   // Update resultUrl when existingImageUrl changes
   useEffect(() => {
@@ -20,6 +23,26 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
 
   const handleImageChange = (e) => setImage(e.target.files[0]);
   const handlePromptChange = (e) => setPrompt(e.target.value);
+  
+  const handleDirectUploadChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setDirectUploadImage(file);
+      // Create a preview URL for the uploaded image
+      const imageUrl = URL.createObjectURL(file);
+      setResultUrl(imageUrl);
+      if (onImageEdited) onImageEdited(imageUrl);
+    }
+  };
+  
+  const handleDirectUploadSubmit = () => {
+    if (directUploadImage) {
+      // For direct upload, we don't need to generate anything
+      // The image is already uploaded and ready
+      setResultUrl(URL.createObjectURL(directUploadImage));
+      if (onImageEdited) onImageEdited(URL.createObjectURL(directUploadImage));
+    }
+  };
 
   // Function to download the generated image
   const handleDownload = () => {
@@ -54,113 +77,197 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
     URL.revokeObjectURL(url);
   };
 
-  // Function to convert image to SVG
+  // Function to convert image to SVG using Convertio API
   const handleConvertToSvg = async () => {
     if (!resultUrl) return;
+    
+    // Check if Convertio API is available
+    if (!isConvertioAvailable()) {
+      setError("Convertio API key not configured. Please add VITE_CONVERTIO_API_KEY to your environment variables.");
+      return;
+    }
     
     setIsConvertingToSvg(true);
     setError(null);
     
     try {
-      // Create a canvas to process the image
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
+      // Extract base64 data from resultUrl
+      let base64Data;
+      let filename = 'image.png';
       
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        // Draw the image on canvas
-        ctx.drawImage(img, 0, 0);
-        
-        // Get image data for processing
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Create an SVG representation suitable for outline art
-        // This creates a clean SVG with the image embedded and outline effects
-        
-        // Calculate display dimensions to ensure the SVG fits well in the preview
-        const maxDisplaySize = 400; // Maximum display size for preview
-        let displayWidth = canvas.width;
-        let displayHeight = canvas.height;
-        
-        // Scale down if the image is too large for comfortable viewing
-        if (displayWidth > maxDisplaySize || displayHeight > maxDisplaySize) {
-          const scale = Math.min(maxDisplaySize / displayWidth, maxDisplaySize / displayHeight);
-          displayWidth = Math.round(displayWidth * scale);
-          displayHeight = Math.round(displayHeight * scale);
+      if (resultUrl.startsWith('data:')) {
+        // It's a data URL, extract the base64 part
+        const arr = resultUrl.split(',');
+        if (arr.length >= 2) {
+          base64Data = arr[1];
+          
+          // Try to extract filename and mime type from the data URL
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          if (mimeMatch && mimeMatch[1]) {
+            const mimeType = mimeMatch[1];
+            if (mimeType.includes('jpeg') || mimeType.includes('jpg')) {
+              filename = 'image.jpg';
+            } else if (mimeType.includes('png')) {
+              filename = 'image.png';
+            } else if (mimeType.includes('webp')) {
+              filename = 'image.webp';
+            }
+          }
+        } else {
+          throw new Error('Invalid data URL format');
         }
+      } else {
+        // It's a regular URL, we need to fetch and convert to base64
+        const response = await fetch(resultUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
         
-        const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${displayWidth}" height="${displayHeight}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvas.width} ${canvas.height}" preserveAspectRatio="xMidYMid meet" style="max-width: 100%; height: auto; display: block;">
-  <defs>
-    <!-- Filter for creating outline effect -->
-    <filter id="outline" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-      <feOffset dx="0" dy="0"/>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    
-    <!-- Filter for edge detection -->
-    <filter id="edge-detect" x="-20%" y="-20%" width="140%" height="140%">
-      <feConvolveMatrix order="3" kernelMatrix="0 -1 0 -1 4 -1 0 -1 0"/>
-    </filter>
-  </defs>
-  
-  <!-- Background with subtle outline -->
-  <rect width="${canvas.width}" height="${canvas.height}" fill="white"/>
-  
-  <!-- Main image with outline filter -->
-  <image href="${resultUrl}" width="${canvas.width}" height="${canvas.height}" filter="url(#outline)"/>
-  
-  <!-- Edge detection overlay for outline effect -->
-  <image href="${resultUrl}" width="${canvas.width}" height="${canvas.height}" filter="url(#edge-detect)" opacity="0.3"/>
-  
-  <!-- Border frame -->
-  <rect width="${canvas.width}" height="${canvas.height}" fill="none" stroke="black" stroke-width="2" opacity="0.8"/>
-  
-  <!-- Corner accents for outline art style -->
-  <g stroke="black" stroke-width="1" fill="none" opacity="0.7">
-    <!-- Top-left corner -->
-    <path d="M 10,10 L 30,10 M 10,10 L 10,30"/>
-    <!-- Top-right corner -->
-    <path d="M ${canvas.width-30},10 L ${canvas.width-10},10 M ${canvas.width-10},10 L ${canvas.width-10},30"/>
-    <!-- Bottom-left corner -->
-    <path d="M 10,${canvas.height-30} L 10,${canvas.height-10} M 10,${canvas.height-10} L 30,${canvas.height-10}"/>
-    <!-- Bottom-right corner -->
-    <path d="M ${canvas.width-30},${canvas.height-10} L ${canvas.width-10},${canvas.height-10} M ${canvas.width-10},${canvas.height-30} L ${canvas.width-10},${canvas.height-10}"/>
-  </g>
-</svg>`;
-        
-        setSvgContent(svg);
-        setSvgConverted(true);
-        if (onSvgConverted) onSvgConverted(svg);
-        
-        setIsConvertingToSvg(false);
-        
-        // Clear any previous errors and show success state
-        setError(null);
-      };
+        return new Promise((resolve, reject) => {
+          reader.onload = async () => {
+            try {
+              const result = reader.result;
+              if (result && typeof result === 'string' && result.startsWith('data:')) {
+                const parts = result.split(',');
+                if (parts.length >= 2) {
+                  const base64 = parts[1];
+                  await performConvertioConversion(base64, filename);
+                  resolve();
+                } else {
+                  reject(new Error('Invalid data URL format'));
+                }
+              } else {
+                reject(new Error('Invalid reader result format'));
+              }
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
       
-      img.onerror = () => {
-        setError("Failed to load image for SVG conversion");
-        setIsConvertingToSvg(false);
-      };
-      
-      // Set crossOrigin to handle data URLs properly
-      img.crossOrigin = "anonymous";
-      img.src = resultUrl;
+      // Perform the conversion with the extracted base64 data
+      await performConvertioConversion(base64Data, filename);
       
     } catch (err) {
       setError("Failed to convert to SVG: " + err.message);
       setIsConvertingToSvg(false);
     }
   };
+  
+  // Helper function to perform the actual Convertio API call
+  const performConvertioConversion = async (base64Data, filename) => {
+    // Step 1: Start conversion
+    const convertResponse = await fetch(`${API_CONFIG.convertio.baseURL}${API_CONFIG.convertio.endpoints.convert}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        apikey: API_CONFIG.convertio.apiKey,
+        input: 'base64',
+        file: base64Data,
+        filename: filename,
+        outputformat: 'svg'
+      })
+    });
+    
+    if (!convertResponse.ok) {
+      throw new Error(`Convertio API error: ${convertResponse.status}`);
+    }
+    
+    const convertData = await convertResponse.json();
+    
+    if (convertData.status === 'error') {
+      throw new Error(`Convertio error: ${convertData.error}`);
+    }
+    
+    const convertId = convertData.data.id;
+    
+    // Step 2: Poll for completion
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes max
+    
+    const pollStatus = async () => {
+      attempts++;
+      
+      const statusUrl = API_CONFIG.convertio.endpoints.status.replace(':id', convertId);
+      const statusResponse = await fetch(`${API_CONFIG.convertio.baseURL}${statusUrl}`, {
+        method: 'GET'
+      });
+      
+      if (!statusResponse.ok) {
+        throw new Error(`Status check failed: ${statusResponse.status}`);
+      }
+      
+      const statusData = await statusResponse.json();
+      
+      if (statusData.status === 'error') {
+        throw new Error(`Status error: ${statusData.error}`);
+      }
+      
+      if (statusData.data.step === 'finish') {
+        // Step 3: Download the converted SVG using the /dl endpoint
+        const downloadUrl = API_CONFIG.convertio.endpoints.download.replace(':id', convertId);
+        console.log('Downloading SVG from /dl endpoint:', `${API_CONFIG.convertio.baseURL}${downloadUrl}`);
+        
+        const downloadResponse = await fetch(`${API_CONFIG.convertio.baseURL}${downloadUrl}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Download failed: ${downloadResponse.status}`);
+        }
+        
+        const responseData = await downloadResponse.json();
+        console.log('Download response:', responseData);
+        
+        if (responseData.status === 'error') {
+          throw new Error(`Download error: ${responseData.error}`);
+        }
+        
+        // Extract and decode the base64 SVG content
+        const base64Content = responseData.data.content;
+        const svgContent = atob(base64Content);
+        
+        // Debug: Log the decoded SVG content
+        console.log('Decoded SVG content:', svgContent);
+        console.log('SVG content length:', svgContent.length);
+        console.log('SVG content starts with:', svgContent.substring(0, 100));
+        
+        setSvgContent(svgContent);
+        setSvgConverted(true);
+        if (onSvgConverted) onSvgConverted(svgContent);
+        setIsConvertingToSvg(false);
+        setError(null);
+        
+      } else if (statusData.data.step === 'error') {
+        throw new Error(`Conversion failed: ${statusData.data.error || 'Unknown error'}`);
+      } else if (attempts >= maxAttempts) {
+        throw new Error('Conversion timeout - took too long');
+      } else {
+        // Wait 5 seconds before next poll
+        setTimeout(pollStatus, 5000);
+      }
+    };
+    
+    // Start polling
+    pollStatus();
+  };
+
+
+
+
+
+
+
+
+
+
 
   // Fake progress effect
   useEffect(() => {
@@ -207,42 +314,125 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block mb-1 font-medium">Upload Image</label>
-        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} required />
-      </div>
-      <div className="flex space-x-2">
-        <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
-          {loading ? "Generating..." : "Generate Image"}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onGoBack}
-        >
-          Go Back
-        </button>
-      </div>
-      {loading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <div>
-              <p className="font-medium text-blue-900">Generating your image...</p>
-              <p className="text-sm text-blue-700">{fakeProgress}% complete</p>
+    <div className="space-y-4">
+      {/* Direct Upload Option for Outline Art Style */}
+      {styleId === 'outline' && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h4 className="font-medium text-purple-900">Direct Upload Option</h4>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowDirectUpload(!showDirectUpload)}
+              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+            >
+              {showDirectUpload ? 'Hide' : 'Show'}
+            </button>
           </div>
-          <div className="w-full bg-blue-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${fakeProgress}%` }}
-            ></div>
-          </div>
+          <p className="text-sm text-purple-700 mb-3">
+            Already have an Outline Art Style image? Upload it directly to skip generation.
+          </p>
+          
+          {showDirectUpload && (
+            <div className="space-y-3">
+              <div>
+                <label className="block mb-1 font-medium text-purple-900">Upload Outline Art Image</label>
+                <input 
+                  type="file" 
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml" 
+                  onChange={handleDirectUploadChange}
+                  className="w-full"
+                />
+                <p className="text-xs text-purple-600 mt-1">
+                  Supports PNG, JPEG, WebP, and SVG files
+                </p>
+              </div>
+              {directUploadImage && (
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleDirectUploadSubmit}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm"
+                  >
+                    Use This Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectUploadImage(null);
+                      setResultUrl(null);
+                    }}
+                    className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
-      {error && <div className="text-red-600">{error}</div>}
-      {resultUrl && (
+
+      {/* AI Generation Option */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center space-x-2 mb-3">
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <h4 className="font-medium text-blue-900">AI Image Generation</h4>
+        </div>
+        <p className="text-sm text-blue-700 mb-3">
+          Generate a new Outline Art Style image using AI from your reference image.
+        </p>
+        
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block mb-1 font-medium text-blue-900">Upload Reference Image</label>
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} required />
+          </div>
+          <div className="flex space-x-2">
+            <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
+              {loading ? "Generating..." : "Generate Image"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onGoBack}
+            >
+              Go Back
+            </button>
+          </div>
+        </form>
+              </div>
+        
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <p className="font-medium text-blue-900">Generating your image...</p>
+                <p className="text-sm text-blue-700">{fakeProgress}% complete</p>
+              </div>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${fakeProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+        
+        {/* Error Display */}
+        {error && <div className="text-red-600">{error}</div>}
+        
+        {/* Result Display */}
+        {resultUrl && (
         <div className="mt-4">
           <div className="flex justify-end mb-2 space-x-2">
             <button
@@ -300,16 +490,39 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
               {/* SVG Preview */}
               <div className="mb-3">
                 <h5 className="text-sm font-medium text-purple-800 mb-2">SVG Preview:</h5>
+                <style>
+                  {`
+                    .svg-preview svg {
+                      max-width: 100% !important;
+                      max-height: 200px !important;
+                      width: auto !important;
+                      height: auto !important;
+                      display: block;
+                    }
+                  `}
+                </style>
                 <div className="bg-white p-3 rounded border">
                   <div 
-                    className="flex justify-center items-center w-full"
+                    className="flex justify-center items-center w-full overflow-hidden"
                     style={{ minHeight: '200px' }}
-                    dangerouslySetInnerHTML={{ __html: svgContent }} 
-                  />
+                  >
+                    {svgContent && (
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: svgContent }}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '200px',
+                          width: 'auto',
+                          height: 'auto'
+                        }}
+                        className="svg-preview"
+                      />
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 text-center mt-2">
                     SVG dimensions: {svgContent ? (() => {
-                      const match = svgContent.match(/width="(\d+)" height="(\d+)"/);
-                      return match ? `${match[1]} × ${match[2]}px` : 'Unknown';
+                      const match = svgContent.match(/width="([^"]+)" height="([^"]+)"/);
+                      return match ? `${match[1]} × ${match[2]}` : 'Unknown';
                     })() : 'Unknown'}
                   </p>
                 </div>
@@ -326,6 +539,6 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
           )}
         </div>
       )}
-    </form>
+    </div>
   );
 } 

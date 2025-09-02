@@ -5,8 +5,6 @@ import ImageUpload from './components/ImageUpload'
 import ModelGenerator from './components/ModelGenerator'
 import ModelViewer from './components/ModelViewer'
 import ImageEdit from './components/ImageEdit'
-import SvgBoardEditor from './components/SvgBoardEditor'
-import SvgBoard3DViewer from './components/SvgBoard3DViewer'
 import { tripo3DService } from './services/api'
 
 function App() {
@@ -45,10 +43,7 @@ function App() {
   const [availableFormats, setAvailableFormats] = useState([])
   const [generationOptionsConfig, setGenerationOptionsConfig] = useState({})
   const [editedImageUrl, setEditedImageUrl] = useState(null)
-  const [svgConverted, setSvgConverted] = useState(false)
-  const [svgBoardReady, setSvgBoardReady] = useState(false)
-  const [svgBoardImage, setSvgBoardImage] = useState(null)
-  const [svgBoardData, setSvgBoardData] = useState(null)
+
 
   // Load available formats and generation options on component mount
   useEffect(() => {
@@ -217,10 +212,7 @@ function App() {
     setError(null)
     setGenerationProgress(0)
     setIsGenerating(false)
-    setSvgConverted(false)
-    setSvgBoardReady(false)
-    setSvgBoardImage(null)
-    setSvgBoardData(null)
+
   }
 
   const handleNext = () => {
@@ -249,43 +241,45 @@ function App() {
       <main className="container mx-auto px-4 py-8">
         {/* Progress Steps */}
         <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
-            {/* 4 steps for all styles: Select Style, Image Generate, 3D Generate, View Model */}
-            {[0, 1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    currentStep >= step
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {step + 1}
-                </div>
-                {step < 3 && (
-                  <div
-                    className={`w-12 h-1 mx-2 ${
-                      currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-center mt-2 space-x-8 text-sm text-gray-600">
-            <span className={currentStep >= 0 ? 'text-blue-600 font-medium' : ''}>
-              Select Style
-            </span>
-            <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
-              Image Generate
-            </span>
-            <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
-              3D Generate
-            </span>
-            <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
-              View Model
-            </span>
-          </div>
+                     <div className="flex items-center justify-center space-x-4">
+             {/* Dynamic steps: 3 for Outline Art, 4 for other styles */}
+             {(selectedStyle === 'outline' ? [0, 1, 2] : [0, 1, 2, 3]).map((step) => (
+               <div key={step} className="flex items-center">
+                 <div
+                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                     currentStep >= step
+                       ? 'bg-blue-600 text-white'
+                       : 'bg-gray-200 text-gray-600'
+                   }`}
+                 >
+                   {step + 1}
+                 </div>
+                 {step < (selectedStyle === 'outline' ? 2 : 3) && (
+                   <div
+                     className={`w-12 h-1 mx-2 ${
+                       currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
+                     }`}
+                   />
+                 )}
+               </div>
+             ))}
+           </div>
+                     <div className="flex justify-center mt-2 space-x-8 text-sm text-gray-600">
+             <span className={currentStep >= 0 ? 'text-blue-600 font-medium' : ''}>
+               Select Style
+             </span>
+             <span className={currentStep >= 1 ? 'text-blue-600 font-medium' : ''}>
+               Image Generate
+             </span>
+             <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
+               {selectedStyle === 'outline' ? 'View Model' : '3D Generate'}
+             </span>
+             {selectedStyle !== 'outline' && (
+               <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
+                 View Model
+               </span>
+             )}
+           </div>
         </div>
 
         {/* Error Display */}
@@ -390,49 +384,78 @@ function App() {
                  onImageEdited={(url) => { 
                    setEditedImageUrl(url);
                    // Convert data URL to File and store in selectedImage
-                   if (url) {
-                     const arr = url.split(',');
-                     const mime = arr[0].match(/:(.*?);/)[1];
-                     const bstr = atob(arr[1]);
-                     let n = bstr.length;
-                     const u8arr = new Uint8Array(n);
-                     while (n--) {
-                       u8arr[n] = bstr.charCodeAt(n);
+                   if (url && url.startsWith('data:')) {
+                     try {
+                       const arr = url.split(',');
+                       if (arr.length >= 2) {
+                         const mimeMatch = arr[0].match(/:(.*?);/);
+                         if (mimeMatch && mimeMatch[1]) {
+                           const mime = mimeMatch[1];
+                           const bstr = atob(arr[1]);
+                           let n = bstr.length;
+                           const u8arr = new Uint8Array(n);
+                           while (n--) {
+                             u8arr[n] = bstr.charCodeAt(n);
+                           }
+                           const file = new File([u8arr], 'generated-image.png', { type: mime });
+                           setSelectedImage(file);
+                         }
+                       }
+                     } catch (error) {
+                       console.error('Error processing image URL:', error);
+                       // Fallback: try to create a file from the URL directly
+                       if (url.startsWith('blob:')) {
+                         // Handle blob URLs
+                         fetch(url)
+                           .then(res => res.blob())
+                           .then(blob => {
+                             const file = new File([blob], 'generated-image.png', { type: 'image/png' });
+                             setSelectedImage(file);
+                           })
+                           .catch(err => console.error('Error creating file from blob:', err));
+                       }
                      }
-                     const file = new File([u8arr], 'generated-image.png', { type: mime });
-                     setSelectedImage(file);
+                   } else if (url && url.startsWith('blob:')) {
+                     // Handle blob URLs
+                     fetch(url)
+                       .then(res => res.blob())
+                       .then(blob => {
+                         const file = new File([blob], 'generated-image.png', { type: 'image/png' });
+                         setSelectedImage(file);
+                       })
+                       .catch(err => console.error('Error creating file from blob:', err));
                    }
                  }}
-                 onSvgConverted={(svgContent) => {
-                   setSvgConverted(true);
-                 }}
+                 
                  hidePrompt 
                  onGoBack={() => {
                    setEditedImageUrl(null);
                    setSelectedImage(null);
-                   if (selectedStyle === 'outline') {
-                     setSvgConverted(false);
-                   }
+                   
                    setCurrentStep(0);
                  }}
                />
-                             {editedImageUrl && selectedStyle === 'outline' && !svgConverted && (
-                 <div className="flex justify-center mt-4">
-                   <p className="text-gray-600 text-sm mb-2">Convert your image to SVG to continue</p>
-                 </div>
-               )}
-               {(editedImageUrl && selectedStyle !== 'outline') || (editedImageUrl && selectedStyle === 'outline' && svgConverted) ? (
-                 <div className="flex justify-center mt-4">
-                   <button
-                     className="btn-primary"
-                     onClick={() => {
-                       setCurrentStep(2) // Go to 3D Generate step
-                     }}
-                   >
-                     Continue to 3D Generate
-                   </button>
-                 </div>
-               ) : null}
+                             
+                             
+                                                           {/* Show continue button for all styles when image is ready */}
+                              {editedImageUrl && (
+                                <div className="flex justify-center mt-4">
+                                  <button
+                                    className="btn-primary"
+                                    onClick={() => {
+                                      if (selectedStyle === 'outline') {
+                                        // For Outline Art, go directly to View Model since there's no 3D Generate step
+                                        setCurrentStep(3)
+                                      } else {
+                                        // For other styles, go to 3D Generate step
+                                        setCurrentStep(2)
+                                      }
+                                    }}
+                                  >
+                                    {selectedStyle === 'outline' ? 'Continue to View Model' : 'Continue to 3D Generate'}
+                                  </button>
+                                </div>
+                              )}
             </div>
           )}
 
@@ -484,53 +507,7 @@ function App() {
             </div>
           )}
 
-          {/* 3D Generate Step for Outline Art */}
-          {currentStep === 2 && selectedStyle === 'outline' && (
-            <div className="space-y-6">
-              {/* Style-specific header for Outline Art */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
-                <h3 className="text-lg font-semibold text-purple-900 mb-1">
-                  ✏️ Outline Art Style
-                </h3>
-                <p className="text-sm text-purple-700">
-                  Create your 3D SVG board with customizable thickness and size
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  3D Generate - SVG Board
-                </h2>
-                <p className="text-gray-600">
-                  Customize your SVG placement on the board and download as a 3D model
-                </p>
-              </div>
-              
-              <SvgBoardEditor
-                svgContent={editedImageUrl}
-                onBoardGenerated={(boardData) => {
-                  setSvgBoardImage(boardData.image)
-                  setSvgBoardData(boardData)
-                  setSvgBoardReady(true)
-                }}
-                className="max-w-4xl mx-auto"
-              />
-              
-              <div className="flex justify-center space-x-4">
-                <button onClick={() => setCurrentStep(1)} className="btn-secondary">
-                  Back
-                </button>
-                {svgBoardReady && (
-                  <button
-                    onClick={() => setCurrentStep(3)}
-                    className="btn-primary"
-                  >
-                    Continue to View Model
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          
 
           {/* View Model Step for Non-Outline Styles */}
           {currentStep === 3 && generatedModel && selectedStyle !== 'outline' && (
@@ -574,8 +551,8 @@ function App() {
             </div>
           )}
 
-          {/* View Model Step for Outline Art */}
-          {currentStep === 3 && svgBoardReady && selectedStyle === 'outline' && (
+                     {/* View Model Step for Outline Art */}
+           {currentStep === 3 && selectedStyle === 'outline' && (
             <div className="space-y-6">
               {/* Style-specific header for Outline Art */}
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
@@ -589,44 +566,30 @@ function App() {
               
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Your SVG Board - 3D Model
+                  Your SVG Board
                 </h2>
                 <p className="text-gray-600">
-                  View your customized SVG board in 3D and download as an STL file
+                  View your customized SVG board
                 </p>
               </div>
               
-              {/* 3D Model Viewer */}
-              {svgBoardData && (
-                <SvgBoard3DViewer
-                  svgBoardImage={svgBoardImage}
-                  boardSize={svgBoardData.boardSize}
-                  svgSize={svgBoardData.svgSize}
-                  thickness={svgBoardData.thickness}
-                  svgPosition={svgBoardData.svgPosition}
-                  svgRotation={svgBoardData.svgRotation}
-                  svgScale={svgBoardData.svgScale}
-                  className="max-w-4xl mx-auto"
-                />
-              )}
-              
-              {/* 2D Preview */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 text-center">2D Preview</h4>
-                {svgBoardImage && (
-                  <div className="text-center">
-                    <img 
-                      src={svgBoardImage} 
-                      alt="Generated SVG Board" 
-                      className="mx-auto border border-gray-300 rounded-lg"
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                    />
-                    <p className="text-sm text-gray-600 mt-2">
-                      Your SVG board with custom thickness and positioning
-                    </p>
-                  </div>
-                )}
-              </div>
+                             {/* Generated Image Display */}
+               <div className="bg-white rounded-lg border border-gray-200 p-6">
+                 <h4 className="text-lg font-medium text-gray-900 mb-4 text-center">Generated Image</h4>
+                 {editedImageUrl && (
+                   <div className="text-center">
+                     <img 
+                       src={editedImageUrl} 
+                       alt="Generated Outline Art" 
+                       className="mx-auto border border-gray-300 rounded-lg"
+                       style={{ maxWidth: '100%', height: 'auto' }}
+                     />
+                     <p className="text-sm text-gray-600 mt-2">
+                       Your outline art image has been generated successfully
+                     </p>
+                   </div>
+                 )}
+               </div>
               
               <div className="flex justify-center space-x-4">
                 <button onClick={() => setCurrentStep(2)} className="btn-secondary">
