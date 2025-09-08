@@ -5,23 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true,
-    historyApiFallback: true
+    open: true
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          three: ['three', '@react-three/fiber', '@react-three/drei']
-        }
-      }
-    }
-  },
-  preview: {
-    port: 3000,
-    open: true
+    sourcemap: true
   }
 }) 
