@@ -58,7 +58,7 @@ function App() {
       const path = window.location.pathname
       if (path === '/app' || path === '/app/') {
         setCurrentView('app')
-      } else if (path === '/app/about') {
+      } else if (path === '/about') {
         setCurrentView('about')
       } else {
         setCurrentView('landing')
@@ -286,12 +286,12 @@ function App() {
 
   const navigateToAbout = () => {
     setCurrentView('about')
-    window.history.pushState({}, '', '/app/about')
+    window.history.pushState({}, '', '/about')
   }
 
   // Show landing page, about page, or app based on current view
   if (currentView === 'landing') {
-    return <LandingPage onNavigateToApp={navigateToApp} />
+    return <LandingPage onNavigateToApp={navigateToApp} onNavigateToAbout={navigateToAbout} />
   }
 
   if (currentView === 'about') {

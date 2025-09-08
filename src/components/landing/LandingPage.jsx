@@ -5,10 +5,10 @@ import { Services } from './Services';
 import { Gallery } from './Gallery';
 import { Footer } from './Footer';
 
-export function LandingPage({ onNavigateToApp }) {
+export function LandingPage({ onNavigateToApp, onNavigateToAbout }) {
   return (
     <div className="min-h-screen bg-background">
-      <Header onNavigateToApp={onNavigateToApp} />
+      <Header onNavigateToApp={onNavigateToApp} onNavigateToAbout={onNavigateToAbout} />
       <main>
         <Hero onNavigateToApp={onNavigateToApp} />
         <Services onNavigateToApp={onNavigateToApp} />
