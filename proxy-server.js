@@ -36,13 +36,27 @@ app.get('/api/download', async (req, res) => {
     
     const fullUrl = url.startsWith('http') ? url : `https://${url}`
     
-    const response = await fetch(fullUrl)
+    const response = await fetch(fullUrl, {
+      redirect: 'follow', // Follow redirects automatically
+      headers: {
+        'User-Agent': 'GenPlay-Proxy/1.0'
+      }
+    })
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
     }
 
     const buffer = await response.arrayBuffer()
-    const contentType = url.includes('.glb') ? 'model/gltf-binary' : 'application/octet-stream'
+    
+    // Determine content type based on file extension
+    let contentType = 'application/octet-stream'
+    if (url.includes('.glb')) {
+      contentType = 'model/gltf-binary'
+    } else if (url.includes('.stl')) {
+      contentType = 'application/sla'
+    } else if (url.includes('.obj')) {
+      contentType = 'application/obj'
+    }
     
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Length', buffer.byteLength)
@@ -52,6 +66,7 @@ app.get('/api/download', async (req, res) => {
     
     res.send(Buffer.from(buffer))
   } catch (error) {
+    console.error('Download error:', error.message, 'URL:', req.query.url)
     res.status(500).json({ 
       error: 'Download failed', 
       message: error.message,

@@ -16,6 +16,14 @@ export const API_CONFIG = {
       download: '/convert/:id/dl'
     }
   },
+
+  // SVG to STL API Configuration
+  svgToStl: {
+    baseURL: 'https://svg-to-stl-api.onrender.com',
+    endpoints: {
+      convert: '/api/svg-to-stl'
+    }
+  },
   
   // Request timeout (5 minutes for model generation)
   timeout: 300000,
