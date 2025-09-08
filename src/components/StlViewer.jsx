@@ -154,7 +154,6 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
     // Try to load STL with fallback mechanism
     const loadStlWithFallback = async (attemptUrl, isFallback = false) => {
       try {
-        console.log(`Loading STL ${isFallback ? '(fallback)' : '(proxy)'}:`, attemptUrl)
         
         // Create new loader instance
         loaderRef.current = new STLLoader()
@@ -169,7 +168,6 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
                 return
               }
 
-              console.log('STL geometry loaded:', geometry)
               
               // Position the geometry flat on the X-Y plane (horizontal)
               geometry.computeBoundingBox()
@@ -193,7 +191,6 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
               const baseScale = 2 / maxDim
               geometry.scale(baseScale, baseScale, baseScale)
 
-              console.log('STL geometry processed:', { center, size, baseScale, 'rotated to lay flat on XY plane': true })
 
               // Store the original processed geometry
               setOriginalGeometry(geometry)
@@ -390,14 +387,12 @@ export default function StlViewer({
 
   // Callback to receive the actual mesh from StlModel
   const handleCurrentMesh = useCallback((mesh) => {
-    console.log('🎯 Current Mesh Received:', mesh)
     setCurrentMesh(mesh)
     setHasGeneratedCombinedStl(false) // Reset flag when mesh changes
   }, [])
 
   // Callback to receive the actual board mesh from Board
   const handleBoardMesh = useCallback((mesh) => {
-    console.log('📋 Board Mesh Received:', mesh)
     setBoardMesh(mesh)
     setHasGeneratedCombinedStl(false) // Reset flag when board changes
   }, [])
@@ -427,7 +422,6 @@ export default function StlViewer({
   // Auto-generate combined STL when both model and board are ready (only once)
   useEffect(() => {
     if (currentMesh && boardMesh && onCombinedStlGenerated && !hasGeneratedCombinedStl) {
-      console.log('🔄 Auto-generating combined STL for view model step...')
       setHasGeneratedCombinedStl(true) // Mark as generated to prevent re-generation
       
       // Generate the combined STL automatically
@@ -443,11 +437,6 @@ export default function StlViewer({
         const stl = exporter.parse(scene, { binary: true })
         const blob = new Blob([stl], { type: 'application/octet-stream' })
         
-        console.log('✅ Auto-generated combined STL:', {
-          blobSize: blob.size,
-          hasModel: !!currentMesh,
-          hasBoard: !!boardMesh
-        })
         
         onCombinedStlGenerated(blob)
       } catch (error) {
@@ -459,12 +448,6 @@ export default function StlViewer({
 
   // Function to export combined STL (model + board)
   const handleExportCombined = useCallback(() => {
-    console.log('📦 Starting Combined STL Export with Mesh Baking...')
-    console.log('🔍 Export Conditions:', {
-      hasCurrentMesh: !!currentMesh,
-      hasBoardMesh: !!boardMesh,
-      hasBoardType: !!boardType
-    })
 
     if (!currentMesh || !boardMesh) {
       console.warn('❌ Export failed: Missing mesh references')
@@ -479,30 +462,16 @@ export default function StlViewer({
       const bakedModel = bakeWorldToGeometry(currentMesh)
       const bakedBoard = bakeWorldToGeometry(boardMesh)
 
-      console.log('🍞 Baked Meshes:', {
-        model: bakedModel,
-        board: bakedBoard,
-        modelChildren: bakedModel.children.length,
-        boardChildren: bakedBoard.children.length
-      })
 
       scene.add(bakedBoard)
       scene.add(bakedModel)
 
-      console.log('🎭 Scene Ready for Export:', {
-        children: scene.children.length,
-        totalObjects: scene.children.reduce((count, child) => count + (child.children ? child.children.length : 0), 0)
-      })
 
       // 2) Export binary STL for better fidelity/size
       const exporter = new STLExporter()
       const stl = exporter.parse(scene, { binary: true })
 
       const blob = new Blob([stl], { type: 'application/octet-stream' })
-      console.log('✅ Combined STL Export Successful:', {
-        blobSize: blob.size,
-        fileName: 'combined-model-with-board.stl'
-      })
 
       // Call the callback to pass the combined STL blob to parent
       if (onCombinedStlGenerated) {
@@ -550,7 +519,6 @@ export default function StlViewer({
           shadows
           gl={{ antialias: true, alpha: true }}
           onCreated={({ camera }) => {
-            console.log('Canvas created, camera position:', camera.position)
             // Look down at the model from above
             camera.lookAt(0, 0, 0)
           }}

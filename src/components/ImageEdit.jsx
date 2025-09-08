@@ -233,7 +233,6 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
       if (statusData.data.step === 'finish') {
         // Step 3: Download the converted SVG using the /dl endpoint
         const downloadUrl = API_CONFIG.convertio.endpoints.download.replace(':id', convertId);
-        console.log('Downloading SVG from /dl endpoint:', `${API_CONFIG.convertio.baseURL}${downloadUrl}`);
         
         const downloadResponse = await fetch(`${API_CONFIG.convertio.baseURL}${downloadUrl}`, {
           method: 'GET',
@@ -247,7 +246,6 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
         }
         
         const responseData = await downloadResponse.json();
-        console.log('Download response:', responseData);
         
         if (responseData.status === 'error') {
           throw new Error(`Download error: ${responseData.error}`);
@@ -257,10 +255,7 @@ export default function ImageEdit({ prompt, onImageEdited, hidePrompt, onGoBack 
         const base64Content = responseData.data.content;
         const svgContent = atob(base64Content);
         
-        // Debug: Log the decoded SVG content
-        console.log('Decoded SVG content:', svgContent);
-        console.log('SVG content length:', svgContent.length);
-        console.log('SVG content starts with:', svgContent.substring(0, 100));
+        // SVG content decoded successfully
         
         setSvgContent(svgContent);
         setSvgConverted(true);

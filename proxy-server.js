@@ -97,8 +97,5 @@ const proxyOptions = {
 app.use('/api', createProxyMiddleware(proxyOptions))
 
 app.listen(PORT, () => {
-  console.log(`🚀 GenPlay Proxy Server running on port ${PORT}`)
-  console.log(`📡 Proxying requests to: https://api.tripo3d.ai/v2`)
-  console.log(`🔑 API Key configured: ${process.env.VITE_TRIPO_AI_API_KEY ? 'Yes' : 'No'}`)
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`)
+  // GenPlay Proxy Server started successfully
 }) 

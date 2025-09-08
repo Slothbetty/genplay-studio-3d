@@ -257,7 +257,7 @@ export default function Outline3DGenerator({
                 stlUrl={generatedStl.stlUrl || generatedStl.downloadUrl}
                 className="w-full h-[600px]"
                 onModelLoad={(geometry) => {
-                  console.log('STL model loaded successfully:', geometry)
+                  // STL model loaded successfully
                 }}
                 onModelError={(error) => {
                   console.error('STL model loading error:', error)

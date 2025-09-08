@@ -36,7 +36,6 @@ class SvgToStlService {
       formData.append('depth', depth.toString())
       formData.append('size', size.toString())
 
-      console.log('Converting SVG to STL with options:', { format, depth, size })
 
       const response = await fetch(`${this.baseURL}${this.endpoint}`, {
         method: 'POST',
@@ -49,7 +48,6 @@ class SvgToStlService {
       }
 
       const result = await response.json()
-      console.log('SVG to STL conversion result:', result)
 
       // Ensure the result has the expected structure
       if (result && result.downloadUrl) {
@@ -83,7 +81,6 @@ class SvgToStlService {
         ? `http://localhost:3001/api/download?url=${encodeURIComponent(downloadUrl)}`
         : `${import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'}/api/download?url=${encodeURIComponent(downloadUrl)}`
       
-      console.log('Downloading STL via proxy:', proxyUrl)
       
       const response = await fetch(proxyUrl)
       

@@ -568,7 +568,7 @@ export async function editImageWithAI(imageFile, prompt) {
   
   // First validate that we have an API key
   const apiKey = env.VITE_OPENAI_API_KEY;
-  console.log('Raw API Key:', apiKey); // This will help us debug
+  // API key validation
   
   if (!apiKey) {
     console.error('API key is missing. All env vars:', env);
