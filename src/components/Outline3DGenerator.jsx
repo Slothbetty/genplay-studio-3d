@@ -265,15 +265,7 @@ export default function Outline3DGenerator({
               />
             </div>
 
-            {/* Download button */}
-            <div className="text-center">
-              <button
-                onClick={handleDownload}
-                className="btn-primary"
-              >
-                📥 Download STL File
-              </button>
-            </div>
+            {/* Download buttons are now in the StlViewer component */}
           </div>
         </div>
       )}
@@ -315,7 +307,7 @@ export default function Outline3DGenerator({
             }}
             className="btn-primary"
           >
-            Continue to View Model →
+            Complete →
           </button>
         )}
       </div>

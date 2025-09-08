@@ -2,29 +2,37 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls, Environment, Html } from '@react-three/drei'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 import * as THREE from 'three'
 
 // Board component
-const Board = React.memo(function Board({ type, size = 2, position = [0, 0, 0] }) {
+const Board = React.memo(function Board({ type, size = [2, 2, 0.1], position = [0, 0, 0], color = "#FFFFFF", onBoardMesh = null }) {
   const boardRef = useRef()
   
   const boardGeometry = useMemo(() => {
     if (type === 'square') {
-      return new THREE.PlaneGeometry(size, size)
+      return new THREE.BoxGeometry(size[0], size[2], size[1]) // width, height, depth
     } else if (type === 'circle') {
-      return new THREE.CircleGeometry(size / 2, 32)
+      return new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 32) // radius, radius, height, segments
     }
     return null
   }, [type, size])
 
+  // Pass the board mesh reference to parent component when ready
+  useEffect(() => {
+    if (onBoardMesh && boardRef.current && boardGeometry) {
+      onBoardMesh(boardRef.current)
+    }
+  }, [onBoardMesh, boardGeometry])
+
   if (!boardGeometry) return null
 
   return (
-    <mesh ref={boardRef} position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+    <mesh ref={boardRef} position={position} receiveShadow castShadow>
       <primitive object={boardGeometry} attach="geometry" />
       <meshStandardMaterial 
         attach="material" 
-        color="#8B5CF6" 
+        color={color} 
         metalness={0.1}
         roughness={0.7}
         side={THREE.DoubleSide}
@@ -34,7 +42,7 @@ const Board = React.memo(function Board({ type, size = 2, position = [0, 0, 0] }
 })
 
 // STL Model component
-const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness = 1, scale = 1, position = [0, 0, 0], boardType = null, boardSize = 2 }) {
+const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness = 1, scale = 1, position = [0, 0, 0], boardType = null, boardSize = 2, color = "#000000", onProcessedGeometry = null, onCurrentGeometry = null, onModelPosition = null, onCurrentMesh = null }) {
   // ALL HOOKS MUST BE AT THE TOP - NO CONDITIONAL HOOKS
   const meshRef = useRef()
   const [loading, setLoading] = useState(true)
@@ -62,19 +70,66 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
 
   // Calculate position on top of board - MUST BE BEFORE ANY CONDITIONAL RETURNS
   const modelPosition = useMemo(() => {
-    if (boardType) {
-      return [position[0], position[1] + 0.1, position[2]] // Place model slightly above board
+    if (boardType && originalGeometry) {
+      // Position model so its bottom sits directly on the board surface
+      // The user's Y position controls the model's height relative to the board surface
+      const boardHeight = Array.isArray(boardSize) ? boardSize[2] : 0.1
+      const boardTopY = boardHeight / 2 // Board top surface is at boardHeight/2
+      
+      // Use the processed geometry to get accurate dimensions
+      const processedGeom = processGeometry(originalGeometry, thickness, scale)
+      processedGeom.computeBoundingBox() // Ensure bounding box is computed
+      const modelSize = processedGeom.boundingBox.getSize(new THREE.Vector3())
+      const modelHeight = modelSize.y
+      
+      // Position model so its bottom sits on the board surface
+      // Since the model is centered at origin, we need to move it up by half its height
+      // Add a small offset to ensure the model sits clearly above the board
+      const modelCenterY = boardTopY + (modelHeight / 2) + position[1] + 0.01 // 0.01 offset to ensure visibility
+      
+      
+      return [position[0], modelCenterY, position[2]]
     }
     return position
-  }, [position, boardType])
+  }, [position, boardType, boardSize, originalGeometry, thickness, scale, processGeometry])
+
+  // Pass the calculated position to parent component for export
+  useEffect(() => {
+    if (onModelPosition) {
+      onModelPosition(modelPosition)
+    }
+  }, [modelPosition, onModelPosition])
+
+  // Pass the mesh reference to parent component when ready
+  useEffect(() => {
+    if (onCurrentMesh && meshRef.current && geometry) {
+      onCurrentMesh(meshRef.current)
+    }
+  }, [onCurrentMesh, geometry])
 
   // Effect to update geometry when thickness or scale changes
   useEffect(() => {
     if (originalGeometry) {
       const newGeometry = processGeometry(originalGeometry, thickness, scale)
       setGeometry(newGeometry)
+      
+      // Save the processed geometry to memory for download
+      if (onProcessedGeometry) {
+        // Convert geometry to STL format and save
+        const exporter = new STLExporter()
+        // Create a temporary mesh with the geometry for export
+        const tempMesh = new THREE.Mesh(newGeometry, new THREE.MeshStandardMaterial())
+        const stlString = exporter.parse(tempMesh)
+        const blob = new Blob([stlString], { type: 'application/octet-stream' })
+        onProcessedGeometry(blob)
+      }
+      
+      // Also pass the current geometry for combined export
+      if (onCurrentGeometry) {
+        onCurrentGeometry(newGeometry)
+      }
     }
-  }, [originalGeometry, thickness, scale, processGeometry])
+  }, [originalGeometry, thickness, scale, processGeometry, onProcessedGeometry, onCurrentGeometry])
 
   useEffect(() => {
     if (!url) {
@@ -130,8 +185,8 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
               const newCenter = geometry.boundingBox.getCenter(new THREE.Vector3())
               const newSize = geometry.boundingBox.getSize(new THREE.Vector3())
               
-              // Center horizontally (X and Y) and place the bottom on the ground (Z = 0)
-              geometry.translate(-newCenter.x, -newCenter.y, -newCenter.z + newSize.z/2)
+              // Center the geometry at the origin (0, 0, 0)
+              geometry.translate(-newCenter.x, -newCenter.y, -newCenter.z)
 
               // Scale the geometry to fit in the view (base scale)
               const maxDim = Math.max(size.x, size.y, size.z)
@@ -248,7 +303,7 @@ const StlModel = React.memo(function StlModel({ url, onLoad, onError, thickness 
       <primitive object={geometry} attach="geometry" />
       <meshStandardMaterial 
         attach="material" 
-        color="#000000" 
+        color={color} 
         metalness={0.0}
         roughness={0.8}
         side={THREE.DoubleSide}
@@ -265,15 +320,46 @@ export default function StlViewer({
   onModelLoad = () => {},
   onModelError = () => {},
   showModelControls = true,
-  showBoardControls = true
+  showBoardControls = true,
+  onExportCombined = null,
+  onCombinedStlGenerated = null,
+  autoRotate = false
 }) {
   const [isLoading, setIsLoading] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [modelThickness, setModelThickness] = useState(1)
   const [modelScale, setModelScale] = useState(1)
-  const [modelPosition, setModelPosition] = useState([0, 0, 0])
+  const [modelPosition, setModelPosition] = useState([0, 0, 0]) // User's position controls
+  const [calculatedModelPosition, setCalculatedModelPosition] = useState([0, 0, 0]) // Calculated position for export
   const [boardType, setBoardType] = useState(null)
-  const [boardSize, setBoardSize] = useState(2)
+  const [boardSize, setBoardSize] = useState([2, 2, 0.1]) // [width, depth, thickness]
+  const hasAutoAdjustedRef = useRef(false) // Track if we've auto-adjusted position
+  
+  // Auto-adjust Y position when board is first added
+  useEffect(() => {
+    if (boardType && !hasAutoAdjustedRef.current && modelPosition[1] === 0) {
+      // Only auto-adjust once when board is first added and Y position is at default (0)
+      // Set user Y position to 0 so the model sits directly on the board
+      setModelPosition([modelPosition[0], 0, modelPosition[2]])
+      hasAutoAdjustedRef.current = true
+    } else if (!boardType) {
+      // Reset the flag when board is removed
+      hasAutoAdjustedRef.current = false
+    }
+  }, [boardType, boardSize, modelPosition])
+
+  const [modelColor, setModelColor] = useState("#000000")
+  const [boardColor, setBoardColor] = useState("#FFFFFF")
+  const [processedStlData, setProcessedStlData] = useState(null) // Store the processed STL data in memory
+  const [currentGeometry, setCurrentGeometry] = useState(null) // Store the current geometry for combined export
+  const [currentMesh, setCurrentMesh] = useState(null) // Store the actual mesh from viewer
+  const [boardMesh, setBoardMesh] = useState(null) // Store the actual board mesh from viewer
+  const [hasGeneratedCombinedStl, setHasGeneratedCombinedStl] = useState(false) // Track if we've already generated the combined STL
+
+  // Reset combined STL generation flag when model properties change
+  useEffect(() => {
+    setHasGeneratedCombinedStl(false)
+  }, [modelThickness, modelScale, modelPosition, modelColor, boardType, boardSize, boardColor])
 
   const handleModelLoad = useCallback((geometry) => {
     setIsLoading(false)
@@ -287,6 +373,161 @@ export default function StlViewer({
     onModelError(error)
   }, [onModelError])
 
+  // Callback to save processed STL data to memory
+  const handleProcessedGeometry = useCallback((blob) => {
+    setProcessedStlData(blob)
+  }, [])
+
+  // Callback to save current geometry for combined export
+  const handleCurrentGeometry = useCallback((geometry) => {
+    setCurrentGeometry(geometry)
+  }, [])
+
+  // Callback to receive calculated model position from StlModel
+  const handleModelPosition = useCallback((position) => {
+    setCalculatedModelPosition(position)
+  }, [])
+
+  // Callback to receive the actual mesh from StlModel
+  const handleCurrentMesh = useCallback((mesh) => {
+    console.log('🎯 Current Mesh Received:', mesh)
+    setCurrentMesh(mesh)
+    setHasGeneratedCombinedStl(false) // Reset flag when mesh changes
+  }, [])
+
+  // Callback to receive the actual board mesh from Board
+  const handleBoardMesh = useCallback((mesh) => {
+    console.log('📋 Board Mesh Received:', mesh)
+    setBoardMesh(mesh)
+    setHasGeneratedCombinedStl(false) // Reset flag when board changes
+  }, [])
+
+  // Function to bake world transforms into geometry
+  const bakeWorldToGeometry = useCallback((obj) => {
+    const clone = obj.clone(true)
+    clone.updateMatrixWorld(true)
+
+    clone.traverse((n) => {
+      if (n.isMesh && n.geometry) {
+        // Clone to avoid mutating originals
+        n.geometry = n.geometry.clone()
+        // Apply world matrix to vertices
+        n.geometry.applyMatrix4(n.matrixWorld)
+        // Reset local transforms so exporter doesn't reapply them
+        n.position.set(0, 0, 0)
+        n.rotation.set(0, 0, 0)
+        n.scale.set(1, 1, 1)
+        n.updateMatrixWorld(true)
+      }
+    })
+
+    return clone
+  }, [])
+
+  // Auto-generate combined STL when both model and board are ready (only once)
+  useEffect(() => {
+    if (currentMesh && boardMesh && onCombinedStlGenerated && !hasGeneratedCombinedStl) {
+      console.log('🔄 Auto-generating combined STL for view model step...')
+      setHasGeneratedCombinedStl(true) // Mark as generated to prevent re-generation
+      
+      // Generate the combined STL automatically
+      try {
+        const scene = new THREE.Scene()
+        const bakedModel = bakeWorldToGeometry(currentMesh)
+        const bakedBoard = bakeWorldToGeometry(boardMesh)
+        
+        scene.add(bakedBoard)
+        scene.add(bakedModel)
+        
+        const exporter = new STLExporter()
+        const stl = exporter.parse(scene, { binary: true })
+        const blob = new Blob([stl], { type: 'application/octet-stream' })
+        
+        console.log('✅ Auto-generated combined STL:', {
+          blobSize: blob.size,
+          hasModel: !!currentMesh,
+          hasBoard: !!boardMesh
+        })
+        
+        onCombinedStlGenerated(blob)
+      } catch (error) {
+        console.error('❌ Error auto-generating combined STL:', error)
+        setHasGeneratedCombinedStl(false) // Reset on error so it can try again
+      }
+    }
+  }, [currentMesh, boardMesh, onCombinedStlGenerated, hasGeneratedCombinedStl])
+
+  // Function to export combined STL (model + board)
+  const handleExportCombined = useCallback(() => {
+    console.log('📦 Starting Combined STL Export with Mesh Baking...')
+    console.log('🔍 Export Conditions:', {
+      hasCurrentMesh: !!currentMesh,
+      hasBoardMesh: !!boardMesh,
+      hasBoardType: !!boardType
+    })
+
+    if (!currentMesh || !boardMesh) {
+      console.warn('❌ Export failed: Missing mesh references')
+      alert('Please ensure both STL model and board are loaded')
+      return
+    }
+
+    try {
+      const scene = new THREE.Scene()
+
+      // 1) Use EXACT meshes from the viewer, with all parent transforms baked
+      const bakedModel = bakeWorldToGeometry(currentMesh)
+      const bakedBoard = bakeWorldToGeometry(boardMesh)
+
+      console.log('🍞 Baked Meshes:', {
+        model: bakedModel,
+        board: bakedBoard,
+        modelChildren: bakedModel.children.length,
+        boardChildren: bakedBoard.children.length
+      })
+
+      scene.add(bakedBoard)
+      scene.add(bakedModel)
+
+      console.log('🎭 Scene Ready for Export:', {
+        children: scene.children.length,
+        totalObjects: scene.children.reduce((count, child) => count + (child.children ? child.children.length : 0), 0)
+      })
+
+      // 2) Export binary STL for better fidelity/size
+      const exporter = new STLExporter()
+      const stl = exporter.parse(scene, { binary: true })
+
+      const blob = new Blob([stl], { type: 'application/octet-stream' })
+      console.log('✅ Combined STL Export Successful:', {
+        blobSize: blob.size,
+        fileName: 'combined-model-with-board.stl'
+      })
+
+      // Call the callback to pass the combined STL blob to parent
+      if (onCombinedStlGenerated) {
+        onCombinedStlGenerated(blob)
+      }
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'combined-model-with-board.stl'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('❌ Error exporting combined STL:', error)
+      console.error('🔍 Export Error Details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      alert('Error exporting combined STL file')
+    }
+  }, [currentMesh, boardMesh, bakeWorldToGeometry])
+
   if (!stlUrl) {
     return (
       <div className={`${className} bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center`}>
@@ -299,7 +540,6 @@ export default function StlViewer({
     )
   }
 
-  console.log('StlViewer rendering with URL:', stlUrl)
 
   return (
     <div className="space-y-4">
@@ -335,6 +575,8 @@ export default function StlViewer({
               type={boardType}
               size={boardSize}
               position={[0, 0, 0]}
+              color={boardColor}
+              onBoardMesh={handleBoardMesh}
             />
           )}
 
@@ -345,9 +587,14 @@ export default function StlViewer({
             onError={handleModelError}
             thickness={modelThickness}
             scale={modelScale}
-            position={modelPosition}
+            position={modelPosition} // User's position controls
             boardType={boardType}
             boardSize={boardSize}
+            color={modelColor}
+            onProcessedGeometry={handleProcessedGeometry}
+            onCurrentGeometry={handleCurrentGeometry}
+            onModelPosition={handleModelPosition}
+            onCurrentMesh={handleCurrentMesh}
           />
 
           {/* Debug: Show axes helper */}
@@ -361,7 +608,8 @@ export default function StlViewer({
               enableRotate={true}
               minDistance={2}
               maxDistance={10}
-              autoRotate={false}
+              autoRotate={autoRotate}
+              autoRotateSpeed={2}
             />
           )}
 
@@ -404,12 +652,12 @@ export default function StlViewer({
         )}
       </div>
 
-      {/* Model Controls - Below 3D Preview */}
+      {/* STL Model Controls - Below 3D Preview */}
       {showModelControls && stlUrl && !isLoading && !hasError && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Model Controls</h4>
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">STL Model Controls</h4>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Height Control */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -448,110 +696,233 @@ export default function StlViewer({
               />
             </div>
 
-            {/* Board Controls */}
-            {showBoardControls && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Board</label>
-                <div className="flex space-x-2 mb-2">
-                  <button
-                    onClick={() => setBoardType(boardType === 'square' ? null : 'square')}
-                    className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
-                      boardType === 'square' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }`}
-                  >
-                    Square
-                  </button>
-                  <button
-                    onClick={() => setBoardType(boardType === 'circle' ? null : 'circle')}
-                    className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
-                      boardType === 'circle' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }`}
-                  >
-                    Circle
-                  </button>
-                </div>
-                {boardType && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Board Size: {boardSize.toFixed(1)}
-                    </label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="4"
-                      step="0.1"
-                      value={boardSize}
-                      onChange={(e) => setBoardSize(parseFloat(e.target.value))}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                      style={{
-                        background: `linear-gradient(to right, #8B5CF6 0%, #8B5CF6 ${(boardSize - 1) / 3 * 100}%, #E5E7EB ${(boardSize - 1) / 3 * 100}%, #E5E7EB 100%)`
-                      }}
-                    />
-                  </div>
-                )}
+            {/* Model Color Control */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Model Color
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="color"
+                  value={modelColor}
+                  onChange={(e) => setModelColor(e.target.value)}
+                  className="w-12 h-8 rounded border border-gray-300 cursor-pointer"
+                />
+                <span className="text-xs text-gray-600">{modelColor}</span>
               </div>
+            </div>
+
+            {/* Position Controls */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
+              <div className="space-y-2">
+                {/* X Position */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">X: {modelPosition[0].toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    value={modelPosition[0]}
+                    onChange={(e) => setModelPosition(prev => [parseFloat(e.target.value), prev[1], prev[2]])}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #EF4444 0%, #EF4444 ${(modelPosition[0] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[0] + 2) / 4 * 100}%, #E5E7EB 100%)`
+                    }}
+                  />
+                </div>
+
+                {/* Y Position */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Y: {modelPosition[1].toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    value={modelPosition[1]}
+                    onChange={(e) => setModelPosition(prev => [prev[0], parseFloat(e.target.value), prev[2]])}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #8B5CF6 0%, #8B5CF6 ${(modelPosition[1] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[1] + 2) / 4 * 100}%, #E5E7EB 100%)`
+                    }}
+                  />
+                </div>
+
+                {/* Z Position */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Z: {modelPosition[2].toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    value={modelPosition[2]}
+                    onChange={(e) => setModelPosition(prev => [prev[0], prev[1], parseFloat(e.target.value)])}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #F59E0B 0%, #F59E0B ${(modelPosition[2] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[2] + 2) / 4 * 100}%, #E5E7EB 100%)`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Board Controls - Separate Section */}
+      {showBoardControls && stlUrl && !isLoading && !hasError && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Board Controls</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Board Type Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Board Type</label>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setBoardType(boardType === 'square' ? null : 'square')}
+                  className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
+                    boardType === 'square' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Square
+                </button>
+                <button
+                  onClick={() => setBoardType(boardType === 'circle' ? null : 'circle')}
+                  className={`flex-1 px-3 py-2 text-sm rounded transition-colors ${
+                    boardType === 'circle' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Circle
+                </button>
+              </div>
+            </div>
+
+            {/* Board Color Control */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Board Color</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="color"
+                  value={boardColor}
+                  onChange={(e) => setBoardColor(e.target.value)}
+                  className="w-12 h-8 rounded border border-gray-300 cursor-pointer"
+                />
+                <span className="text-xs text-gray-600">{boardColor}</span>
+              </div>
+            </div>
+
+            {/* Board Size Controls */}
+            {boardType && (
+              <>
+                {/* Board Thickness */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Thickness: {boardSize[2].toFixed(2)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="1"
+                    step="0.05"
+                    value={boardSize[2]}
+                    onChange={(e) => setBoardSize(prev => [prev[0], prev[1], parseFloat(e.target.value)])}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #8B5CF6 0%, #8B5CF6 ${(boardSize[2] - 0.05) / 0.95 * 100}%, #E5E7EB ${(boardSize[2] - 0.05) / 0.95 * 100}%, #E5E7EB 100%)`
+                    }}
+                  />
+                </div>
+                
+                {/* Board Width */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Width: {boardSize[0].toFixed(1)}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="0.1"
+                    value={boardSize[0]}
+                    onChange={(e) => setBoardSize(prev => [parseFloat(e.target.value), prev[1], prev[2]])}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #EF4444 0%, #EF4444 ${(boardSize[0] - 1) / 4 * 100}%, #E5E7EB ${(boardSize[0] - 1) / 4 * 100}%, #E5E7EB 100%)`
+                    }}
+                  />
+                </div>
+              </>
             )}
           </div>
 
-          {/* Position Controls */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Position</label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* X Position */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">X Position: {modelPosition[0].toFixed(1)}</label>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  value={modelPosition[0]}
-                  onChange={(e) => setModelPosition(prev => [parseFloat(e.target.value), prev[1], prev[2]])}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #EF4444 0%, #EF4444 ${(modelPosition[0] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[0] + 2) / 4 * 100}%, #E5E7EB 100%)`
-                  }}
-                />
-              </div>
-
-              {/* Y Position */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Y Position: {modelPosition[1].toFixed(1)}</label>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  value={modelPosition[1]}
-                  onChange={(e) => setModelPosition(prev => [prev[0], parseFloat(e.target.value), prev[2]])}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #8B5CF6 0%, #8B5CF6 ${(modelPosition[1] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[1] + 2) / 4 * 100}%, #E5E7EB 100%)`
-                  }}
-                />
-              </div>
-
-              {/* Z Position */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Z Position: {modelPosition[2].toFixed(1)}</label>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.1"
-                  value={modelPosition[2]}
-                  onChange={(e) => setModelPosition(prev => [prev[0], prev[1], parseFloat(e.target.value)])}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #F59E0B 0%, #F59E0B ${(modelPosition[2] + 2) / 4 * 100}%, #E5E7EB ${(modelPosition[2] + 2) / 4 * 100}%, #E5E7EB 100%)`
-                  }}
-                />
-              </div>
+          {/* Board Height Control - Full Width */}
+          {boardType && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Height: {boardSize[1].toFixed(1)}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                step="0.1"
+                value={boardSize[1]}
+                onChange={(e) => setBoardSize(prev => [prev[0], parseFloat(e.target.value), prev[2]])}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #10B981 0%, #10B981 ${(boardSize[1] - 1) / 4 * 100}%, #E5E7EB ${(boardSize[1] - 1) / 4 * 100}%, #E5E7EB 100%)`
+                }}
+              />
             </div>
+          )}
+
+          {/* Download Buttons */}
+          <div className="mt-6 flex justify-center space-x-4">
+            {/* Original STL Download Button */}
+            <button
+              onClick={() => {
+                if (!processedStlData) {
+                  alert('No processed STL data available for download. Please wait for the model to load.')
+                  return
+                }
+                
+                try {
+                  // Download the processed STL data from memory
+                  const url = URL.createObjectURL(processedStlData)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = 'processed-model.stl'
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  URL.revokeObjectURL(url)
+                } catch (error) {
+                  console.error('Download error:', error)
+                  alert('Download failed. Please try again.')
+                }
+              }}
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
+            >
+              📥 Download STL File
+            </button>
+
+            {/* Combined STL + Board Download Button */}
+            {boardType && (
+              <button
+                onClick={handleExportCombined}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+              >
+                📦 Download STL + Board
+              </button>
+            )}
           </div>
 
           {/* Reset Button */}
@@ -562,7 +933,9 @@ export default function StlViewer({
                 setModelScale(1)
                 setModelPosition([0, 0, 0])
                 setBoardType(null)
-                setBoardSize(2)
+                setBoardSize([2, 2, 0.1])
+                setModelColor("#000000")
+                setBoardColor("#FFFFFF")
               }}
               className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded transition-colors"
             >

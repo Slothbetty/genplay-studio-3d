@@ -242,17 +242,21 @@ function App() {
   }
 
   const handleReset = () => {
-    setCurrentStep(1)
+    setCurrentStep(0)
+    setSelectedStyle(null)
+    setSelectedStylePrompt("")
     setSelectedImage(null)
     setUploadedFile(null)
     setUploadedFileId(null)
     setShouldUploadImage(false)
     setTextPrompt('Generate a 3D model from this image')
     setGeneratedModel(null)
+    setSvgContent(null)
+    setGeneratedStl(null)
+    setEditedImageUrl(null)
     setError(null)
     setGenerationProgress(0)
     setIsGenerating(false)
-
   }
 
   const handleNext = () => {
@@ -306,8 +310,8 @@ function App() {
         {/* Progress Steps */}
         <div className="mb-8">
                      <div className="flex items-center justify-center space-x-4">
-             {/* All styles now have 4 steps */}
-             {[0, 1, 2, 3].map((step) => (
+             {/* Outline Art has 3 steps, other styles have 4 steps */}
+             {(selectedStyle === 'outline' ? [0, 1, 2] : [0, 1, 2, 3]).map((step) => (
                <div key={step} className="flex items-center">
                  <div
                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -318,7 +322,7 @@ function App() {
                  >
                    {step + 1}
                  </div>
-                 {step < 3 && (
+                 {step < (selectedStyle === 'outline' ? 2 : 3) && (
                    <div
                      className={`w-12 h-1 mx-2 ${
                        currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
@@ -338,9 +342,11 @@ function App() {
              <span className={currentStep >= 2 ? 'text-blue-600 font-medium' : ''}>
                3D Generate
              </span>
-             <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
-               View Model
-             </span>
+             {selectedStyle !== 'outline' && (
+               <span className={currentStep >= 3 ? 'text-blue-600 font-medium' : ''}>
+                 View Model
+               </span>
+             )}
            </div>
         </div>
 
@@ -629,123 +635,21 @@ function App() {
               <Outline3DGenerator
                 svgContent={svgContent}
                 onGenerationComplete={handleStlGenerated}
-                onGoBack={() => setCurrentStep(1)}
+                onGoBack={() => {
+                  setEditedImageUrl(null);
+                  setSelectedImage(null);
+                  setCurrentStep(1);
+                }}
                 onError={(error) => setError(error)}
-                onContinue={() => setCurrentStep(3)}
+                onContinue={() => {
+                  // For Outline Art, completion means starting over
+                  handleReset();
+                }}
               />
             </div>
           )}
 
-                     {/* View Model Step for Outline Art */}
-           {currentStep === 3 && selectedStyle === 'outline' && (
-            <div className="space-y-6">
-              {/* Style-specific header for Outline Art */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 text-center">
-                <h3 className="text-lg font-semibold text-purple-900 mb-1">
-                  ✏️ Outline Art Style
-                </h3>
-                <p className="text-sm text-purple-700">
-                  Your outline art 3D model is ready!
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Your 3D Model
-                </h2>
-                <p className="text-gray-600">
-                  Your outline art has been converted to a 3D STL model
-                </p>
-              </div>
-              
-              {/* Generated Image Display */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 text-center">Original Outline Art</h4>
-                {editedImageUrl && (
-                  <div className="text-center">
-                    <img 
-                      src={editedImageUrl} 
-                      alt="Generated Outline Art" 
-                      className="mx-auto border border-gray-300 rounded-lg"
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                    />
-                    <p className="text-sm text-gray-600 mt-2">
-                      Your outline art image
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              {/* Generated STL Model Display */}
-              {generatedStl && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h4 className="text-lg font-medium text-gray-900 mb-4 text-center">Generated 3D STL Model</h4>
-                  
-                  <div className="space-y-6">
-                    {/* Success message */}
-                    <div className="text-center">
-                      <div className="text-green-600">
-                        <span className="text-4xl">🎉</span>
-                        <p className="text-lg font-medium mt-2">3D Model Ready!</p>
-                      </div>
-                      
-                      <div className="bg-gray-50 rounded-lg p-4 mt-4">
-                        <p className="text-sm text-gray-600">
-                          Your outline art has been successfully converted to a 3D STL model.
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Format: {generatedStl.format || 'STL'} | 
-                          Size: {generatedStl.size || '100'}mm | 
-                          Depth: {generatedStl.depth || '2'}mm
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 3D Model Viewer */}
-                    <div>
-                      <h5 className="text-md font-medium text-gray-900 mb-3 text-center">3D Model Preview</h5>
-                      <StlViewer 
-                        stlUrl={generatedStl.stlUrl || generatedStl.downloadUrl}
-                        className="w-full h-[600px]"
-                        onModelLoad={(geometry) => {
-                          console.log('STL model loaded in view step:', geometry)
-                        }}
-                        onModelError={(error) => {
-                          console.error('STL model loading error in view step:', error)
-                        }}
-                      />
-                    </div>
-
-                    {/* Download button */}
-                    <div className="text-center">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { svgToStlService } = await import('./services/svgToStlService')
-                            await svgToStlService.downloadStlFile(generatedStl.downloadUrl, 'outline-art-model.stl')
-                          } catch (error) {
-                            setError(`Download failed: ${error.message}`)
-                          }
-                        }}
-                        className="btn-primary"
-                      >
-                        📥 Download STL File
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex justify-center space-x-4">
-                <button onClick={() => setCurrentStep(2)} className="btn-secondary">
-                  Back
-                </button>
-                <button onClick={handleReset} className="btn-primary">
-                  Start Over
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>
