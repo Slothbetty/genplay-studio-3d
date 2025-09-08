@@ -8,8 +8,11 @@ import ImageEdit from './components/ImageEdit'
 import Outline3DGenerator from './components/Outline3DGenerator'
 import StlViewer from './components/StlViewer'
 import { tripo3DService } from './services/api'
+import { LandingPage } from './components/landing/LandingPage'
+import { AboutPage } from './components/AboutPage'
 
 function App() {
+  const [currentView, setCurrentView] = useState('landing') // 'landing', 'app', or 'about'
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedStyle, setSelectedStyle] = useState(null)
   const [selectedStylePrompt, setSelectedStylePrompt] = useState("")
@@ -48,6 +51,31 @@ function App() {
   const [generationOptionsConfig, setGenerationOptionsConfig] = useState({})
   const [editedImageUrl, setEditedImageUrl] = useState(null)
 
+
+  // Handle URL routing
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const path = window.location.pathname
+      if (path === '/app' || path === '/app/') {
+        setCurrentView('app')
+      } else if (path === '/app/about') {
+        setCurrentView('about')
+      } else {
+        setCurrentView('landing')
+      }
+    }
+
+    // Handle initial route
+    handleRouteChange()
+
+    // Listen for browser navigation (back/forward buttons)
+    window.addEventListener('popstate', handleRouteChange)
+
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange)
+    }
+  }, [])
 
   // Load available formats and generation options on component mount
   useEffect(() => {
@@ -246,9 +274,33 @@ function App() {
   const canGenerate = (selectedImage !== null && !isGenerating) || 
                      (editedImageUrl !== null && !isGenerating)
 
+  const navigateToApp = () => {
+    setCurrentView('app')
+    window.history.pushState({}, '', '/app')
+  }
+
+  const navigateToLanding = () => {
+    setCurrentView('landing')
+    window.history.pushState({}, '', '/')
+  }
+
+  const navigateToAbout = () => {
+    setCurrentView('about')
+    window.history.pushState({}, '', '/app/about')
+  }
+
+  // Show landing page, about page, or app based on current view
+  if (currentView === 'landing') {
+    return <LandingPage onNavigateToApp={navigateToApp} />
+  }
+
+  if (currentView === 'about') {
+    return <AboutPage onNavigateToLanding={navigateToLanding} />
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header onNavigateToLanding={navigateToLanding} />
       
       <main className="container mx-auto px-4 py-8">
         {/* Progress Steps */}

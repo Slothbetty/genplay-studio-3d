@@ -1,5 +1,5 @@
 {
-  "name": "genplay-studio-3d",
+  "name": "genplay-ai-3d",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,13 @@
     "proxy": "node proxy-server.js"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
     "@react-three/drei": "^9.99.0",
     "@react-three/fiber": "^8.15.16",
     "@types/three": "^0.179.0",
     "axios": "^1.6.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
@@ -22,6 +25,7 @@
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "tailwind-merge": "^3.3.1",
     "three": "^0.161.0",
     "ws": "^8.18.3"
   },
@@ -46,6 +50,6 @@
     "react",
     "three.js"
   ],
-  "author": "GenPlay Studio",
+  "author": "GenPlay AI",
   "license": "MIT"
 }

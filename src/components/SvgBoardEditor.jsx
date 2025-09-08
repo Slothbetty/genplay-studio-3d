@@ -63,7 +63,7 @@ const SvgBoardEditor = ({ svgContent, onBoardGenerated, className = '' }) => {
         
         // Draw SVG with thickness effect
         if (thickness > 1) {
-          // Create multiple layers for thickness effect
+          // Create multiple layer s for thickness effect
           for (let i = 0; i < thickness; i++) {
             ctx.globalAlpha = 0.3 - (i * 0.1)
             ctx.drawImage(
