@@ -58,7 +58,7 @@ export function Gallery({ onNavigateToApp }) {
       description: "Transform Photo into a custom 3D-printed keepsake",
       beforeImage: "/images/keychain-before.jpg", // Original pet photo
       afterImage: "/images/keychain-after.jpg", // 3D printed keychain
-      style: "Custom Keepsake"
+      style: "Keychain"
     },
     {
       id: 2,
@@ -66,7 +66,7 @@ export function Gallery({ onNavigateToApp }) {
       description: "Turn memorable photo into 3D-printed fridge magnet",
       beforeImage: "/images/magnet-before.jpg", 
       afterImage: "/images/magnet-after.jpg", 
-      style: "Family Figurine"
+      style: "Fridge Magnet"
     },
     {
       id: 3,
