@@ -3,6 +3,13 @@ import { Button } from './ui/button.jsx';
 import Header from './Header';
 
 export function AboutPage({ onNavigateToLanding }) {
+  // Debug logging for production
+  console.log('AboutPage component rendered', { 
+    onNavigateToLanding: typeof onNavigateToLanding,
+    currentPath: window.location.pathname,
+    environment: import.meta.env.MODE
+  })
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigateToLanding={onNavigateToLanding} />
@@ -135,7 +142,11 @@ export function AboutPage({ onNavigateToLanding }) {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
-                  onClick={() => window.location.href = '/app'}
+                  onClick={() => {
+                    // Use proper navigation instead of window.location
+                    window.history.pushState({}, '', '/app')
+                    window.dispatchEvent(new PopStateEvent('popstate'))
+                  }}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-all duration-200 transform hover:scale-105"
                 >
                   Start Creating Now

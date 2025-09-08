@@ -89,7 +89,6 @@ export function Hero({ onNavigateToApp }) {
             <span 
               className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
               style={{
-                animation: 'fadeInUp 0.8s ease-out 0.4s forwards',
                 opacity: 0,
                 backgroundSize: '200% 200%',
                 animation: 'fadeInUp 0.8s ease-out 0.4s forwards, gradientShift 3s ease-in-out infinite 1.2s'
@@ -101,7 +100,6 @@ export function Hero({ onNavigateToApp }) {
             <span 
               className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
               style={{
-                animation: 'fadeInRight 0.8s ease-out 0.6s forwards',
                 opacity: 0,
                 backgroundSize: '200% 200%',
                 animation: 'fadeInRight 0.8s ease-out 0.6s forwards, gradientShift 3s ease-in-out infinite 1.8s'

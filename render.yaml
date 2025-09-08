@@ -11,11 +11,17 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
     envVars:
       - key: VITE_TRIPO_AI_API_KEY
         sync: false
       - key: VITE_RENDER_PROXY_URL
         value: https://genplay-proxy.onrender.com
+      - key: NODE_ENV
+        value: production
 
   # Proxy service (for API calls)
   - type: web
