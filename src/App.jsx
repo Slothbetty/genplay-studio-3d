@@ -9,7 +9,7 @@ import Outline3DGenerator from './components/Outline3DGenerator'
 import StlViewer from './components/StlViewer'
 import { tripo3DService } from './services/api'
 import { LandingPage } from './components/landing/LandingPage'
-import { AboutPage } from './components/AboutPage'
+import { AboutPage } from './components/landing/AboutPage'
 
 function App() {
   const [currentView, setCurrentView] = useState('landing') // 'landing', 'app', or 'about'
