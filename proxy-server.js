@@ -11,10 +11,22 @@ const PORT = process.env.PORT || 3001
 // Enable CORS for all origins in production
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://genplay-studio-3d.onrender.com', 'http://localhost:3000']
+    ? true // Allow all origins in production
     : 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }))
+
+// Handle preflight OPTIONS requests
+app.options('*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.status(200).end()
+})
 
 // Health check (should come first)
 app.get('/health', (req, res) => {
@@ -88,6 +100,11 @@ const proxyOptions = {
     }
   },
   onProxyRes: (proxyRes, req, res) => {
+    // Add CORS headers to all proxy responses
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
   },
   onError: (err, req, res) => {
     res.status(500).json({ error: 'Proxy error', message: err.message })
