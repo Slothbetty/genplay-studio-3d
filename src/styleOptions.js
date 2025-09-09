@@ -15,7 +15,7 @@ export const STYLE_OPTIONS = [
   {
     id: 'outline',
     name: 'Outline Art',
-    prompt: 'Convert the provided image into a clean black line art illustration, with sharp outlines, no shading or colors, minimal white background.',
+    prompt: '根据图片生成一张黑白线条的图片，线条要粗不要背景.',
     image: '/images/clean-vector-line-art.png'
   },
   {
