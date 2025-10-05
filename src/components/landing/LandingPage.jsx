@@ -11,8 +11,8 @@ export function LandingPage({ onNavigateToApp, onNavigateToAbout }) {
       <Header onNavigateToApp={onNavigateToApp} onNavigateToAbout={onNavigateToAbout} />
       <main>
         <Hero onNavigateToApp={onNavigateToApp} />
-        <Services onNavigateToApp={onNavigateToApp} />
         <Gallery onNavigateToApp={onNavigateToApp} />
+        <Services onNavigateToApp={onNavigateToApp} />
       </main>
       <Footer />
     </div>
