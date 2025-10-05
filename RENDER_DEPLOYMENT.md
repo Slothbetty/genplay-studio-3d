@@ -196,6 +196,8 @@ app.listen(PORT, () => {
 3. **Environment Variables**
    ```
    VITE_TRIPO_AI_API_KEY=your_api_key_here
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASS=your-app-password
    NODE_ENV=production
    ```
 
@@ -214,7 +216,50 @@ After your proxy service is deployed:
    ```
 3. **Redeploy the static site** (Render will auto-deploy when you push changes)
 
-## Step 3: Configure Custom Domain (Optional)
+## Step 3: Email Configuration
+
+### 3.1 Gmail Setup (Recommended)
+
+For the contact form to work, you need to set up Gmail App Password:
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+2. **Generate App Password**:
+   - Go to Google Account settings → Security → 2-Step Verification → App passwords
+   - Generate a new app password for "Mail"
+   - Use this password (not your regular Gmail password) in `EMAIL_PASS`
+
+3. **Update Environment Variables** in your Render proxy service:
+   ```
+   EMAIL_USER=your-actual-gmail@gmail.com
+   EMAIL_PASS=your-16-character-app-password
+   ```
+
+### 3.2 Alternative Email Providers
+
+For other email providers, you can modify the transporter configuration in `proxy-server.js`:
+
+```javascript
+const transporter = nodemailer.createTransporter({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: process.env.EMAIL_SECURE === 'true',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+})
+```
+
+Add these environment variables to your Render proxy service:
+```
+EMAIL_HOST=smtp.your-provider.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your-email@yourdomain.com
+EMAIL_PASS=your-password
+```
+
+## Step 4: Configure Custom Domain (Optional)
 
 1. **Add Custom Domain**
    - Go to your static site settings
@@ -225,9 +270,9 @@ After your proxy service is deployed:
    - Add CNAME record pointing to your Render URL
    - Render will automatically provision SSL certificate
 
-## Step 4: Update Your App for Production
+## Step 5: Update Your App for Production
 
-### 4.1 Update ModelViewer Component
+### 5.1 Update ModelViewer Component
 
 Update `src/components/ModelViewer.jsx` to use the Render proxy:
 
@@ -238,7 +283,7 @@ const proxyUrl = import.meta.env.DEV
   : `${import.meta.env.VITE_RENDER_PROXY_URL}/api/download?url=${encodeURIComponent(modelUrl)}`
 ```
 
-### 4.2 Update API Service
+### 5.2 Update API Service
 
 Ensure your `src/services/api.js` uses the correct base URL:
 
@@ -248,14 +293,16 @@ const baseURL = isDevelopment
   : (import.meta.env.VITE_RENDER_PROXY_URL || 'https://your-proxy-service.onrender.com/api')
 ```
 
-## Step 5: Test Your Deployment
+## Step 6: Test Your Deployment
 
 1. **Visit your static site URL** (e.g., `https://genplay-studio-3d.onrender.com`)
 2. **Test the full flow**:
    - Upload an image
    - Generate a model
    - View the 3D model
+   - Test the contact form (fill out and submit)
 3. **Check proxy service logs** in Render dashboard
+4. **Verify email delivery** at `info@genplayai.io`
 
 ## Cost Breakdown
 

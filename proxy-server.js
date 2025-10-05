@@ -2,11 +2,15 @@ import express from 'express'
 import cors from 'cors'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import dotenv from 'dotenv'
+import nodemailer from 'nodemailer'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+// Middleware for parsing JSON
+app.use(express.json())
 
 // Enable CORS for all origins in production
 app.use(cors({
@@ -83,6 +87,86 @@ app.get('/api/download', async (req, res) => {
       error: 'Download failed', 
       message: error.message,
       url: req.query.url 
+    })
+  }
+})
+
+// Email endpoint
+app.post('/api/send-email', async (req, res) => {
+  try {
+    const { name, email, phone, company, service, message } = req.body
+
+    // Validate required fields
+    if (!name || !email || !message) {
+      return res.status(400).json({ 
+        error: 'Missing required fields', 
+        required: ['name', 'email', 'message'] 
+      })
+    }
+
+    // Create transporter with real Gmail credentials
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    })
+
+    // Email content
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: 'info@genplayai.io',
+      subject: `[CONTACT FORM] ${service || 'General Inquiry'} - ${name}`,
+      headers: {
+        'X-Custom-Header': 'GenPlay-Contact-Form',
+        'X-Priority': '3'
+      },
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+        <p><strong>Company:</strong> ${company || 'Not provided'}</p>
+        <p><strong>Service:</strong> ${service || 'General Inquiry'}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message.replace(/\n/g, '<br>')}</p>
+        <hr>
+        <p><em>This email was sent from the GenPlay AI contact form.</em></p>
+      `,
+      text: `
+New Contact Form Submission
+
+Name: ${name}
+Email: ${email}
+Phone: ${phone || 'Not provided'}
+Company: ${company || 'Not provided'}
+Service: ${service || 'General Inquiry'}
+
+Message:
+${message}
+
+---
+This email was sent from the GenPlay AI contact form.
+      `
+    }
+
+    // Send email
+    await transporter.sendMail(mailOptions)
+    
+    // Log successful email sending
+    console.log(`✅ Email sent successfully to info@genplayai.io from ${email}`)
+    
+    res.json({ 
+      success: true, 
+      message: 'Email sent successfully!' 
+    })
+
+  } catch (error) {
+    console.error('Email error:', error)
+    res.status(500).json({ 
+      error: 'Failed to send email', 
+      message: error.message 
     })
   }
 })

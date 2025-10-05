@@ -149,6 +149,8 @@ amplify console
    ```bash
    VITE_TRIPO_API_KEY=your_production_api_key
    VITE_API_BASE_URL=https://api.tripo3d.ai/v2
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASS=your-app-password
    ```
 
 3. **Update API service:**
@@ -156,6 +158,40 @@ amplify console
    // src/services/api.js
    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.tripo3d.ai/v2'
    ```
+
+## Email Configuration
+
+### Gmail Setup (Recommended)
+
+For the contact form to work in production:
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+2. **Generate App Password**:
+   - Go to Google Account settings → Security → 2-Step Verification → App passwords
+   - Generate a new app password for "Mail"
+   - Use this password (not your regular Gmail password) in `EMAIL_PASS`
+
+3. **Set Environment Variables**:
+   ```bash
+   EMAIL_USER=your-actual-gmail@gmail.com
+   EMAIL_PASS=your-16-character-app-password
+   ```
+
+### Alternative Email Providers
+
+For other email providers, modify the transporter configuration in your proxy server:
+
+```javascript
+const transporter = nodemailer.createTransporter({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  secure: process.env.EMAIL_SECURE === 'true',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+})
+```
 
 ## Proxy Server Deployment
 
@@ -183,6 +219,12 @@ Since your app uses a local proxy server, you'll need to deploy it separately:
 3. **Update React app to use proxy URL:**
    ```javascript
    const API_BASE_URL = 'https://your-proxy-domain.com/api'
+   ```
+
+4. **Set up email environment variables on EC2:**
+   ```bash
+   export EMAIL_USER=your-email@gmail.com
+   export EMAIL_PASS=your-app-password
    ```
 
 ### Option B: Use API Gateway + Lambda
@@ -222,6 +264,12 @@ Since your app uses a local proxy server, you'll need to deploy it separately:
    - Add Lambda integration
    - Configure CORS
 
+3. **Set up email environment variables in Lambda:**
+   - Go to Lambda function configuration
+   - Add environment variables:
+     - `EMAIL_USER`: your-email@gmail.com
+     - `EMAIL_PASS`: your-app-password
+
 ## Recommended Deployment Architecture
 
 For production, I recommend:
@@ -229,9 +277,9 @@ For production, I recommend:
 ```
 Internet → CloudFront → S3 (React App)
                 ↓
-         API Gateway → Lambda (Proxy)
+         API Gateway → Lambda (Proxy + Email)
                 ↓
-         Tripo 3D API
+         Tripo 3D API + Gmail SMTP
 ```
 
 ## Security Considerations
@@ -241,11 +289,16 @@ Internet → CloudFront → S3 (React App)
    - Use environment variables
    - Consider using AWS Secrets Manager
 
-2. **CORS Configuration:**
+2. **Email Security:**
+   - Use App Passwords instead of regular passwords
+   - Store email credentials in environment variables
+   - Consider using AWS Secrets Manager for email credentials
+
+3. **CORS Configuration:**
    - Configure proper CORS headers
    - Restrict origins to your domain
 
-3. **HTTPS:**
+4. **HTTPS:**
    - Always use HTTPS in production
    - Configure SSL certificates
 
@@ -258,6 +311,7 @@ Internet → CloudFront → S3 (React App)
 2. **CloudWatch Metrics:**
    - Monitor API calls and response times
    - Set up alarms for errors
+   - Monitor email delivery success rates
 
 ## Cost Optimization
 
@@ -308,6 +362,11 @@ This gives you a scalable, cost-effective solution with minimal maintenance.
 3. **Build Errors:**
    - Ensure all dependencies are installed
    - Check for TypeScript errors
+
+4. **Email Issues:**
+   - Check Gmail App Password setup
+   - Verify email environment variables
+   - Check SMTP connection logs
 
 ### Support:
 

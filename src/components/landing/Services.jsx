@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 
 export function Services({ onNavigateToApp }) {
   const [showContactForm, setShowContactForm] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
     email: '',
@@ -60,6 +61,17 @@ export function Services({ onNavigateToApp }) {
           transform: scale(1);
         }
       }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        animation: spin 1s linear infinite;
+      }
     `;
     document.head.appendChild(style);
     
@@ -75,6 +87,7 @@ export function Services({ onNavigateToApp }) {
 
   const closeContactForm = () => {
     setShowContactForm(false);
+    setIsSubmitting(false);
     setFormData({
       name: '',
       email: '',
@@ -90,26 +103,33 @@ export function Services({ onNavigateToApp }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Create mailto link with form data
-    const subject = `Inquiry about ${formData.service}`;
-    const body = `
-Name: ${formData.name}
-Email: ${formData.email}
-Phone: ${formData.phone}
-Company: ${formData.company}
-Service: ${formData.service}
+    try {
+      const response = await fetch('http://localhost:3001/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
 
-Message:
-${formData.message}
-    `.trim();
-    
-    const mailtoLink = `mailto:info@genplayai.io?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
-    
-    closeContactForm();
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Thank you! Your message has been sent successfully.');
+        closeContactForm();
+      } else {
+        alert(`Error: ${result.message || 'Failed to send message. Please try again.'}`);
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Error sending message. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Close modal on escape key
@@ -396,9 +416,33 @@ ${formData.message}
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                    disabled={isSubmitting}
+                    className={`flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg transition-all flex items-center justify-center ${
+                      isSubmitting 
+                        ? 'opacity-75 cursor-not-allowed' 
+                        : 'hover:from-purple-700 hover:to-blue-700'
+                    }`}
                   >
-                    Submit Request
+                    {isSubmitting ? (
+                      <>
+                        <svg 
+                          className="w-4 h-4 mr-2 spinner" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                          />
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      'Submit Request'
+                    )}
                   </button>
                 </div>
               </form>

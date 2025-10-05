@@ -140,6 +140,14 @@ Create a `.env` file in the project root:
 # Tripo 3D API Configuration
 VITE_TRIPO_AI_API_KEY=your_api_key_here
 VITE_TRIPO_AI_API_URL=https://platform.tripo3d.ai/api/v1
+
+# Email Configuration (for contact form)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
 ```
 
 ### 3. API Configuration
@@ -215,9 +223,33 @@ npm install
 # Start development server
 npm run dev
 
+# Start proxy server (required for API and email)
+npm run proxy
+
 # Build for production
 npm run build
 ```
+
+## Contact Form Integration
+
+The app includes a professional contact form that integrates with the Tripo 3D services:
+
+### Features:
+- **Service-specific inquiries**: Users can request quotes for specific services
+- **Direct email delivery**: Form submissions are sent directly to `info@genplayai.io`
+- **Loading states**: Professional loading spinners during form submission
+- **Form validation**: Client-side validation for required fields
+- **Success feedback**: User-friendly success and error messages
+
+### Usage:
+1. Users navigate to the Services section on the landing page
+2. Click "Get Quote" or "Learn More" on any service
+3. Fill out the contact form with their details
+4. Click "Submit Request" to send the inquiry
+5. Form shows loading state and success message
+6. Email is automatically sent to `info@genplayai.io`
+
+For detailed email setup instructions, see [EMAIL_SETUP.md](./EMAIL_SETUP.md).
 
 ## API Documentation
 
