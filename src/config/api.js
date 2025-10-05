@@ -141,5 +141,4 @@ export const getGenerationParams = (quality = 'high', style = 'realistic') => {
     style
   }
 }
-
 export default API_CONFIG 

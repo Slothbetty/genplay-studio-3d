@@ -1,6 +1,16 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card.jsx';
 
+// API configuration following the same pattern as services/api.js
+const isDevelopment = import.meta.env.DEV
+const getApiBaseUrl = () => {
+  if (isDevelopment) {
+    return 'http://localhost:3001'
+  } else {
+    return import.meta.env.VITE_RENDER_PROXY_URL || 'https://genplay-proxy.onrender.com'
+  }
+}
+
 export function Services({ onNavigateToApp }) {
   const [showContactForm, setShowContactForm] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -108,7 +118,7 @@ export function Services({ onNavigateToApp }) {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('http://localhost:3001/api/send-email', {
+      const response = await fetch(`${getApiBaseUrl()}/api/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

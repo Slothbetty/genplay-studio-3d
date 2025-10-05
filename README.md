@@ -17,8 +17,10 @@ A modern web application for generating 3D models using AI, built with React, Th
 - **📱 Responsive Design**: Works on desktop and mobile devices
 - **🎯 Multiple Formats**: Support for GLB, glTF, OBJ, and FBX formats
 - **📧 Contact Form**: Professional contact form with direct email integration
+- **📰 Newsletter**: Email subscription system for updates and announcements
 - **⏳ Loading States**: Smooth loading spinners and user feedback
 - **🎨 Modern UI**: Beautiful landing page with services showcase
+- **👨‍💼 Admin Panel**: Newsletter management and subscriber tracking
 
 ## 🚀 Quick Start
 
@@ -85,7 +87,9 @@ src/
 │       ├── Hero.jsx    # Hero section
 │       ├── Services.jsx # Services showcase with contact form
 │       ├── Gallery.jsx # Image gallery
+│       ├── Newsletter.jsx # Newsletter subscription
 │       └── Footer.jsx  # Footer with contact info
+│   ├── NewsletterAdmin.jsx # Newsletter management admin panel
 ├── services/
 │   └── api.js          # Tripo 3D API service
 ├── config/
@@ -125,6 +129,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **API Issues**: Contact [Tripo 3D Support](https://platform.tripo3d.ai/support)
 - **App Issues**: Create an issue in this repository
 - **Email Setup**: See [EMAIL_SETUP.md](./EMAIL_SETUP.md)
+- **Newsletter System**: See [NEWSLETTER_SETUP.md](./NEWSLETTER_SETUP.md)
 - **API Documentation**: See [TRIPO_AI_SETUP.md](./TRIPO_AI_SETUP.md)
 - **Deployment**: See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) or [DEPLOYMENT.md](./DEPLOYMENT.md)
 

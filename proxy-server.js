@@ -3,11 +3,46 @@ import cors from 'cors'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import dotenv from 'dotenv'
 import nodemailer from 'nodemailer'
+import fs from 'fs'
+import path from 'path'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+// Newsletter data file path
+const NEWSLETTER_DATA_FILE = path.join(process.cwd(), 'newsletter-subscribers.json')
+
+// Initialize newsletter data file if it doesn't exist
+if (!fs.existsSync(NEWSLETTER_DATA_FILE)) {
+  fs.writeFileSync(NEWSLETTER_DATA_FILE, JSON.stringify({
+    subscribers: [],
+    lastUpdated: new Date().toISOString()
+  }))
+}
+
+// Helper functions for newsletter data
+const readNewsletterData = () => {
+  try {
+    const data = fs.readFileSync(NEWSLETTER_DATA_FILE, 'utf8')
+    return JSON.parse(data)
+  } catch (error) {
+    console.error('Error reading newsletter data:', error)
+    return { subscribers: [], lastUpdated: new Date().toISOString() }
+  }
+}
+
+const writeNewsletterData = (data) => {
+  try {
+    data.lastUpdated = new Date().toISOString()
+    fs.writeFileSync(NEWSLETTER_DATA_FILE, JSON.stringify(data, null, 2))
+    return true
+  } catch (error) {
+    console.error('Error writing newsletter data:', error)
+    return false
+  }
+}
 
 // Middleware for parsing JSON
 app.use(express.json())
@@ -166,6 +201,205 @@ This email was sent from the GenPlay AI contact form.
     console.error('Email error:', error)
     res.status(500).json({ 
       error: 'Failed to send email', 
+      message: error.message 
+    })
+  }
+})
+
+// Newsletter subscription endpoint
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    // Validate email
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ 
+        error: 'Valid email address is required' 
+      })
+    }
+
+    // Read current newsletter data
+    const newsletterData = readNewsletterData()
+    
+    // Check if email already exists
+    const existingSubscriber = newsletterData.subscribers.find(
+      sub => sub.email.toLowerCase() === email.toLowerCase()
+    )
+
+    if (existingSubscriber) {
+      return res.status(409).json({ 
+        message: 'This email is already subscribed to our newsletter' 
+      })
+    }
+
+    // Add new subscriber
+    const newSubscriber = {
+      email: email.toLowerCase(),
+      subscribedAt: new Date().toISOString(),
+      status: 'active'
+    }
+
+    newsletterData.subscribers.push(newSubscriber)
+
+    // Save updated data
+    if (writeNewsletterData(newsletterData)) {
+      console.log(`✅ New newsletter subscriber: ${email}`)
+      
+      res.json({ 
+        success: true, 
+        message: 'Successfully subscribed to newsletter!' 
+      })
+    } else {
+      throw new Error('Failed to save subscription data')
+    }
+
+  } catch (error) {
+    console.error('Newsletter subscription error:', error)
+    res.status(500).json({ 
+      error: 'Failed to subscribe to newsletter', 
+      message: error.message 
+    })
+  }
+})
+
+// Newsletter unsubscribe endpoint
+app.post('/api/newsletter/unsubscribe', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ 
+        error: 'Valid email address is required' 
+      })
+    }
+
+    const newsletterData = readNewsletterData()
+    
+    // Find and update subscriber status
+    const subscriberIndex = newsletterData.subscribers.findIndex(
+      sub => sub.email.toLowerCase() === email.toLowerCase()
+    )
+
+    if (subscriberIndex === -1) {
+      return res.status(404).json({ 
+        message: 'Email not found in our newsletter list' 
+      })
+    }
+
+    // Mark as unsubscribed
+    newsletterData.subscribers[subscriberIndex].status = 'unsubscribed'
+    newsletterData.subscribers[subscriberIndex].unsubscribedAt = new Date().toISOString()
+
+    if (writeNewsletterData(newsletterData)) {
+      console.log(`📧 Newsletter unsubscribed: ${email}`)
+      
+      res.json({ 
+        success: true, 
+        message: 'Successfully unsubscribed from newsletter' 
+      })
+    } else {
+      throw new Error('Failed to update subscription data')
+    }
+
+  } catch (error) {
+    console.error('Newsletter unsubscribe error:', error)
+    res.status(500).json({ 
+      error: 'Failed to unsubscribe from newsletter', 
+      message: error.message 
+    })
+  }
+})
+
+// Get newsletter subscribers (admin endpoint)
+app.get('/api/newsletter/subscribers', async (req, res) => {
+  try {
+    const newsletterData = readNewsletterData()
+    
+    // Return only active subscribers for privacy
+    const activeSubscribers = newsletterData.subscribers.filter(
+      sub => sub.status === 'active'
+    )
+
+    res.json({
+      success: true,
+      count: activeSubscribers.length,
+      subscribers: activeSubscribers.map(sub => ({
+        email: sub.email,
+        subscribedAt: sub.subscribedAt
+      }))
+    })
+
+  } catch (error) {
+    console.error('Error fetching newsletter subscribers:', error)
+    res.status(500).json({ 
+      error: 'Failed to fetch subscribers', 
+      message: error.message 
+    })
+  }
+})
+
+// Send newsletter endpoint (admin endpoint)
+app.post('/api/newsletter/send', async (req, res) => {
+  try {
+    const { subject, content, htmlContent } = req.body
+
+    if (!subject || !content) {
+      return res.status(400).json({ 
+        error: 'Subject and content are required' 
+      })
+    }
+
+    // Get active subscribers
+    const newsletterData = readNewsletterData()
+    const activeSubscribers = newsletterData.subscribers.filter(
+      sub => sub.status === 'active'
+    )
+
+    if (activeSubscribers.length === 0) {
+      return res.status(400).json({ 
+        error: 'No active subscribers found' 
+      })
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    })
+
+    // Send newsletter to all subscribers
+    const emailPromises = activeSubscribers.map(async (subscriber) => {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: subscriber.email,
+        subject: subject,
+        text: content,
+        html: htmlContent || content.replace(/\n/g, '<br>'),
+        headers: {
+          'X-Custom-Header': 'GenPlay-Newsletter',
+          'List-Unsubscribe': `<mailto:${process.env.EMAIL_USER}?subject=Unsubscribe>`
+        }
+      }
+
+      return transporter.sendMail(mailOptions)
+    })
+
+    await Promise.all(emailPromises)
+    
+    console.log(`📧 Newsletter sent to ${activeSubscribers.length} subscribers`)
+    
+    res.json({ 
+      success: true, 
+      message: `Newsletter sent to ${activeSubscribers.length} subscribers` 
+    })
+
+  } catch (error) {
+    console.error('Newsletter sending error:', error)
+    res.status(500).json({ 
+      error: 'Failed to send newsletter', 
       message: error.message 
     })
   }

@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { Hero } from './Hero';
 import { Services } from './Services';
 import { Gallery } from './Gallery';
+import { Newsletter } from './Newsletter';
 import { Footer } from './Footer';
 
 export function LandingPage({ onNavigateToApp, onNavigateToAbout }) {
@@ -13,6 +14,7 @@ export function LandingPage({ onNavigateToApp, onNavigateToAbout }) {
         <Hero onNavigateToApp={onNavigateToApp} />
         <Gallery onNavigateToApp={onNavigateToApp} />
         <Services onNavigateToApp={onNavigateToApp} />
+        <Newsletter />
       </main>
       <Footer />
     </div>
