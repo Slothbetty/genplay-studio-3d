@@ -139,13 +139,28 @@ app.post('/api/send-email', async (req, res) => {
       })
     }
 
-    // Create transporter with real Gmail credentials
+    // Validate email configuration
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('❌ Email configuration missing: EMAIL_USER and EMAIL_PASS must be set')
+      return res.status(500).json({ 
+        error: 'Email service not configured', 
+        message: 'Please contact administrator' 
+      })
+    }
+
+    // Create transporter with real Gmail credentials and timeout settings
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,     // 60 seconds
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100
     })
 
     // Email content
@@ -186,11 +201,31 @@ This email was sent from the GenPlay AI contact form.
       `
     }
 
-    // Send email
-    await transporter.sendMail(mailOptions)
-    
-    // Log successful email sending
-    console.log(`✅ Email sent successfully to info@genplayai.io from ${email}`)
+    // Send email with timeout handling
+    try {
+      await transporter.sendMail(mailOptions)
+      console.log(`✅ Email sent successfully to info@genplayai.io from ${email}`)
+    } catch (emailError) {
+      console.error('Email sending error:', emailError)
+      
+      // Handle specific error types
+      if (emailError.code === 'ETIMEDOUT') {
+        return res.status(500).json({ 
+          error: 'Email service timeout', 
+          message: 'Email service is temporarily unavailable. Please try again later.' 
+        })
+      } else if (emailError.code === 'EAUTH') {
+        return res.status(500).json({ 
+          error: 'Email authentication failed', 
+          message: 'Email service configuration error. Please contact administrator.' 
+        })
+      } else {
+        return res.status(500).json({ 
+          error: 'Email sending failed', 
+          message: 'Unable to send email. Please try again later.' 
+        })
+      }
+    }
     
     res.json({ 
       success: true, 
@@ -361,13 +396,28 @@ app.post('/api/newsletter/send', async (req, res) => {
       })
     }
 
-    // Create transporter
+    // Validate email configuration
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('❌ Email configuration missing: EMAIL_USER and EMAIL_PASS must be set')
+      return res.status(500).json({ 
+        error: 'Email service not configured', 
+        message: 'Please contact administrator' 
+      })
+    }
+
+    // Create transporter with timeout settings
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,     // 60 seconds
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100
     })
 
     // Send newsletter to all subscribers
@@ -387,14 +437,36 @@ app.post('/api/newsletter/send', async (req, res) => {
       return transporter.sendMail(mailOptions)
     })
 
-    await Promise.all(emailPromises)
-    
-    console.log(`📧 Newsletter sent to ${activeSubscribers.length} subscribers`)
-    
-    res.json({ 
-      success: true, 
-      message: `Newsletter sent to ${activeSubscribers.length} subscribers` 
-    })
+    // Send emails with error handling
+    try {
+      await Promise.all(emailPromises)
+      console.log(`📧 Newsletter sent to ${activeSubscribers.length} subscribers`)
+      
+      res.json({ 
+        success: true, 
+        message: `Newsletter sent to ${activeSubscribers.length} subscribers` 
+      })
+    } catch (emailError) {
+      console.error('Newsletter sending error:', emailError)
+      
+      // Handle specific error types
+      if (emailError.code === 'ETIMEDOUT') {
+        return res.status(500).json({ 
+          error: 'Email service timeout', 
+          message: 'Email service is temporarily unavailable. Please try again later.' 
+        })
+      } else if (emailError.code === 'EAUTH') {
+        return res.status(500).json({ 
+          error: 'Email authentication failed', 
+          message: 'Email service configuration error. Please contact administrator.' 
+        })
+      } else {
+        return res.status(500).json({ 
+          error: 'Newsletter sending failed', 
+          message: 'Unable to send newsletter. Please try again later.' 
+        })
+      }
+    }
 
   } catch (error) {
     console.error('Newsletter sending error:', error)

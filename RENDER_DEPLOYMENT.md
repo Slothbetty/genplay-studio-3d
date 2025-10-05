@@ -229,10 +229,16 @@ For the contact form to work, you need to set up Gmail App Password:
    - Use this password (not your regular Gmail password) in `EMAIL_PASS`
 
 3. **Update Environment Variables** in your Render proxy service:
+   - Go to your Render dashboard
+   - Navigate to your `genplay-proxy` service
+   - Go to "Environment" tab
+   - Add these environment variables:
    ```
    EMAIL_USER=your-actual-gmail@gmail.com
    EMAIL_PASS=your-16-character-app-password
    ```
+   - Click "Save Changes"
+   - The service will automatically redeploy with the new environment variables
 
 ### 3.2 Alternative Email Providers
 
@@ -258,6 +264,38 @@ EMAIL_SECURE=false
 EMAIL_USER=your-email@yourdomain.com
 EMAIL_PASS=your-password
 ```
+
+## Troubleshooting Email Issues
+
+### Common Email Problems and Solutions
+
+1. **Connection Timeout (ETIMEDOUT)**
+   - **Cause**: Email service is not properly configured or network issues
+   - **Solution**: 
+     - Verify `EMAIL_USER` and `EMAIL_PASS` are set correctly in Render environment variables
+     - Ensure you're using Gmail App Password (not regular password)
+     - Check that 2FA is enabled on your Gmail account
+
+2. **Authentication Failed (EAUTH)**
+   - **Cause**: Invalid email credentials
+   - **Solution**:
+     - Double-check your Gmail App Password
+     - Ensure `EMAIL_USER` is your full Gmail address
+     - Regenerate App Password if needed
+
+3. **Email Service Not Configured**
+   - **Cause**: Missing environment variables
+   - **Solution**:
+     - Add `EMAIL_USER` and `EMAIL_PASS` to your Render proxy service environment variables
+     - Redeploy the service after adding variables
+
+### Testing Email Configuration
+
+To test if email is working:
+1. Go to your deployed site
+2. Use the contact form to send a test message
+3. Check the Render logs for email success/error messages
+4. Verify the email arrives at `info@genplayai.io`
 
 ## Step 4: Configure Custom Domain (Optional)
 
