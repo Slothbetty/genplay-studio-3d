@@ -17,21 +17,7 @@ services:
       - key: VITE_RENDER_PROXY_URL
         value: https://genplay-proxy.onrender.com
 
-  # PostgreSQL Database - Development
-  - type: pserv
-    name: genplay-db-dev
-    plan: free
-    databaseName: genplay_db_dev
-    databaseUser: genplay_user_dev
-
-  # PostgreSQL Database - Production
-  - type: pserv
-    name: genplay-db-prod
-    plan: free
-    databaseName: genplay_db_prod
-    databaseUser: genplay_user_prod
-
-  # Proxy service - Production
+  # Proxy service
   - type: web
     name: genplay-proxy
     env: node
@@ -50,29 +36,4 @@ services:
       - key: EMAIL_PASS
         sync: false
       - key: DATABASE_URL
-        fromDatabase:
-          name: genplay-db-prod
-          property: connectionString
-
-  # Proxy service - Development
-  - type: web
-    name: genplay-proxy-dev
-    env: node
-    plan: free
-    buildCommand: npm install
-    startCommand: node proxy-server.js
-    envVars:
-      - key: VITE_TRIPO_AI_API_KEY
-        sync: false
-      - key: NODE_ENV
-        value: development
-      - key: PORT
-        value: 10000
-      - key: EMAIL_USER
-        sync: false
-      - key: EMAIL_PASS
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: genplay-db-dev
-          property: connectionString 
+        sync: false 
