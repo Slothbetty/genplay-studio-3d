@@ -12,12 +12,23 @@ const getApiBaseUrl = () => {
 
 export function NewsletterAdmin() {
   const [subscribers, setSubscribers] = React.useState([]);
+  const [subscriberCounts, setSubscriberCounts] = React.useState({
+    total: 0,
+    active: 0,
+    pending: 0,
+    unsubscribed: 0
+  });
   const [newsletterForm, setNewsletterForm] = React.useState({
     subject: '',
     content: '',
     htmlContent: ''
   });
+  const [gmailGroupForm, setGmailGroupForm] = React.useState({
+    groupEmail: '',
+    action: 'add'
+  });
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isGmailGroupLoading, setIsGmailGroupLoading] = React.useState(false);
   const [message, setMessage] = React.useState('');
 
   // Fetch subscribers
@@ -27,6 +38,7 @@ export function NewsletterAdmin() {
       const data = await response.json();
       if (data.success) {
         setSubscribers(data.subscribers);
+        setSubscriberCounts(data.counts);
       }
     } catch (error) {
       console.error('Error fetching subscribers:', error);
@@ -64,6 +76,37 @@ export function NewsletterAdmin() {
     }
   };
 
+  // Manage Gmail group
+  const manageGmailGroup = async (e) => {
+    e.preventDefault();
+    setIsGmailGroupLoading(true);
+    setMessage('');
+
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/newsletter/gmail-group`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(gmailGroupForm)
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage(`✅ ${result.message}`);
+        setGmailGroupForm({ groupEmail: '', action: 'add' });
+      } else {
+        setMessage(`❌ ${result.message || 'Failed to manage Gmail group'}`);
+      }
+    } catch (error) {
+      console.error('Gmail group management error:', error);
+      setMessage('❌ Error managing Gmail group. Please try again.');
+    } finally {
+      setIsGmailGroupLoading(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchSubscribers();
   }, []);
@@ -73,9 +116,23 @@ export function NewsletterAdmin() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Newsletter Management</h1>
       
       {/* Subscribers Count */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h2 className="text-xl font-semibold text-blue-900 mb-2">Subscribers</h2>
-        <p className="text-blue-700">Total active subscribers: <span className="font-bold">{subscribers.length}</span></p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-900 mb-1">Total</h3>
+          <p className="text-2xl font-bold text-blue-700">{subscriberCounts.total}</p>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-green-900 mb-1">Active</h3>
+          <p className="text-2xl font-bold text-green-700">{subscriberCounts.active}</p>
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-yellow-900 mb-1">Pending</h3>
+          <p className="text-2xl font-bold text-yellow-700">{subscriberCounts.pending}</p>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-900 mb-1">Unsubscribed</h3>
+          <p className="text-2xl font-bold text-gray-700">{subscriberCounts.unsubscribed}</p>
+        </div>
       </div>
 
       {/* Send Newsletter Form */}
@@ -151,6 +208,68 @@ export function NewsletterAdmin() {
         )}
       </div>
 
+      {/* Gmail Group Management */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Gmail Group Management</h2>
+        <p className="text-gray-600 mb-4">
+          Send subscriber lists to your Gmail group for easy management and bulk email sending.
+        </p>
+        
+        <form onSubmit={manageGmailGroup} className="space-y-4">
+          <div>
+            <label htmlFor="groupEmail" className="block text-sm font-medium text-gray-700 mb-1">
+              Gmail Group Email Address *
+            </label>
+            <input
+              type="email"
+              id="groupEmail"
+              value={gmailGroupForm.groupEmail}
+              onChange={(e) => setGmailGroupForm(prev => ({ ...prev, groupEmail: e.target.value }))}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              placeholder="your-group@googlegroups.com"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="action" className="block text-sm font-medium text-gray-700 mb-1">
+              Action *
+            </label>
+            <select
+              id="action"
+              value={gmailGroupForm.action}
+              onChange={(e) => setGmailGroupForm(prev => ({ ...prev, action: e.target.value }))}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="add">Send Subscriber List (Add to Group)</option>
+              <option value="sync">Send Sync Request</option>
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isGmailGroupLoading}
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
+              isGmailGroupLoading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {isGmailGroupLoading ? 'Sending...' : `Send to Gmail Group`}
+          </button>
+        </form>
+
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-900 mb-1">How it works:</h3>
+          <ul className="text-xs text-blue-800 space-y-1">
+            <li>• <strong>Add to Group:</strong> Sends all active subscriber emails to your Gmail group</li>
+            <li>• <strong>Sync Request:</strong> Sends a request to update your group with latest subscribers</li>
+            <li>• You can then use Gmail's group features to send newsletters to all subscribers</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Subscribers List */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscribers List</h2>
@@ -166,7 +285,13 @@ export function NewsletterAdmin() {
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Subscribed Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Verified Date
                   </th>
                 </tr>
               </thead>
@@ -176,8 +301,22 @@ export function NewsletterAdmin() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {subscriber.email}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        subscriber.status === 'active' 
+                          ? 'bg-green-100 text-green-800'
+                          : subscriber.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {subscriber.status}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(subscriber.subscribedAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {subscriber.verifiedAt ? new Date(subscriber.verifiedAt).toLocaleDateString() : '-'}
                     </td>
                   </tr>
                 ))}
