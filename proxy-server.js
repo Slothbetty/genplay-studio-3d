@@ -89,7 +89,7 @@ const sendConfirmationEmail = async (email, verificationToken) => {
   const confirmationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/newsletter/confirm?token=${verificationToken}`
   
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
     subject: 'Confirm your GenPlay AI Newsletter Subscription',
     headers: {
@@ -193,7 +193,7 @@ const sendWelcomeEmail = async (email) => {
   })
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to: email,
     subject: 'Welcome to GenPlay AI Newsletter! 🎉',
     headers: {
@@ -413,7 +413,7 @@ app.post('/api/test/send-email', async (req, res) => {
     console.log('✅ Gmail connection verified successfully');
 
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Use Gmail account directly
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER, // Use Gmail account directly
       to: to,
       subject: 'Test Email from GenPlay AI - ' + new Date().toISOString(),
       text: `This is a test email to verify email functionality.
@@ -446,7 +446,7 @@ If you receive this email, the email system is working correctly!`,
       message: 'Test email sent successfully',
       messageId: info.messageId,
       response: info.response,
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: to
     });
 
@@ -550,9 +550,10 @@ app.post('/api/send-email', async (req, res) => {
 
     // Email content
     const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: 'info@genplayai.io',
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: 'support@genplayai.io',
       subject: `[CONTACT FORM] ${service || 'General Inquiry'} - ${name}`,
+      replyTo: email, // This allows you to reply directly to the user
       headers: {
         'X-Custom-Header': 'GenPlay-Contact-Form',
         'X-Priority': '3'
@@ -566,8 +567,6 @@ app.post('/api/send-email', async (req, res) => {
         <p><strong>Service:</strong> ${service || 'General Inquiry'}</p>
         <p><strong>Message:</strong></p>
         <p>${message.replace(/\n/g, '<br>')}</p>
-        <hr>
-        <p><em>This email was sent from the GenPlay AI contact form.</em></p>
       `,
       text: `
 New Contact Form Submission
@@ -583,13 +582,14 @@ ${message}
 
 ---
 This email was sent from the GenPlay AI contact form.
+💡 Reply directly to this email to respond to ${name} (${email})
       `
     }
 
     // Send email with timeout handling
     try {
       await transporter.sendMail(mailOptions)
-      console.log(`✅ Email sent successfully to info@genplayai.io from ${email}`)
+      console.log(`✅ Email sent successfully to support@genplayai.io from ${email}`)
     } catch (emailError) {
       console.error('Email sending error:', emailError)
       
@@ -851,7 +851,7 @@ app.post('/api/newsletter/send', async (req, res) => {
     // Send newsletter to all subscribers
     const emailPromises = activeSubscribers.map(async (subscriber) => {
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to: subscriber.email,
         subject: subject,
         text: content,
@@ -949,7 +949,7 @@ app.post('/api/newsletter/gmail-group', async (req, res) => {
       const subscriberList = activeSubscribers.map(sub => sub.email).join('\n')
       
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to: groupEmail,
         subject: 'GenPlay AI Newsletter Subscribers - Add to Group',
         headers: {
@@ -1020,7 +1020,7 @@ Total active subscribers: ${activeSubscribers.length}
     } else if (action === 'sync') {
       // Send a sync request to update the group
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to: groupEmail,
         subject: 'GenPlay AI Newsletter - Group Sync Request',
         headers: {
