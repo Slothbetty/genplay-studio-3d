@@ -333,6 +333,108 @@ app.get('/api/db/tables', async (req, res) => {
   }
 });
 
+// Test email configuration endpoint
+app.get('/api/test/email', async (req, res) => {
+  try {
+    const emailConfig = {
+      emailUser: process.env.EMAIL_USER ? 'Set' : 'Not set',
+      emailPass: process.env.EMAIL_PASS ? 'Set' : 'Not set',
+      hasEmailUser: !!process.env.EMAIL_USER,
+      hasEmailPass: !!process.env.EMAIL_PASS
+    };
+    
+    res.json({
+      success: true,
+      emailConfig: emailConfig,
+      message: 'Email configuration check'
+    });
+  } catch (error) {
+    console.error('Email config test error:', error);
+    res.status(500).json({ 
+      error: 'Failed to check email config',
+      message: error.message 
+    });
+  }
+});
+
+// Test email sending endpoint
+app.post('/api/test/send-email', async (req, res) => {
+  try {
+    const { to } = req.body;
+    
+    if (!to) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return res.status(500).json({ error: 'Email service not configured' });
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      connectionTimeout: 60000,
+      greetingTimeout: 30000
+    });
+
+    // Test the connection first
+    console.log('🔍 Testing Gmail connection...');
+    await transporter.verify();
+    console.log('✅ Gmail connection verified successfully');
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Use Gmail account directly
+      to: to,
+      subject: 'Test Email from GenPlay AI - ' + new Date().toISOString(),
+      text: `This is a test email to verify email functionality.
+      
+Sent at: ${new Date().toISOString()}
+From: ${process.env.EMAIL_USER}
+To: ${to}
+
+If you receive this email, the email system is working correctly!`,
+      html: `
+        <h1>Test Email from GenPlay AI</h1>
+        <p>This is a test email to verify email functionality.</p>
+        <hr>
+        <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
+        <p><strong>From:</strong> ${process.env.EMAIL_USER}</p>
+        <p><strong>To:</strong> ${to}</p>
+        <hr>
+        <p><em>If you receive this email, the email system is working correctly!</em></p>
+      `
+    };
+
+    console.log('📧 Attempting to send test email to:', to);
+    console.log('📧 From:', process.env.EMAIL_USER);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Test email sent successfully:', info.messageId);
+    console.log('📧 Email response:', info.response);
+
+    res.json({
+      success: true,
+      message: 'Test email sent successfully',
+      messageId: info.messageId,
+      response: info.response,
+      from: process.env.EMAIL_USER,
+      to: to
+    });
+
+  } catch (error) {
+    console.error('❌ Test email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send test email',
+      message: error.message,
+      details: error.toString(),
+      code: error.code
+    });
+  }
+});
+
 // Proxy for model downloads (must come BEFORE main proxy middleware)
 app.get('/api/download', async (req, res) => {
   try {
@@ -514,9 +616,9 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
 
     if (existingSubscriber) {
       if (existingSubscriber.status === 'active') {
-        return res.status(409).json({ 
-          message: 'This email is already subscribed to our newsletter' 
-        })
+      return res.status(409).json({ 
+        message: 'This email is already subscribed to our newsletter' 
+      })
       } else if (existingSubscriber.status === 'pending') {
         return res.status(409).json({ 
           message: 'Please check your email for a confirmation link to complete your subscription' 
@@ -540,11 +642,11 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     await sendConfirmationEmail(email, verificationToken)
     
     console.log(`✅ Newsletter subscription initiated for: ${email}`)
-    
-    res.json({ 
-      success: true, 
+      
+      res.json({ 
+        success: true, 
       message: 'Please check your email for a confirmation link to complete your subscription!' 
-    })
+      })
 
   } catch (error) {
     console.error('Newsletter subscription error:', error)
@@ -575,12 +677,12 @@ app.post('/api/newsletter/unsubscribe', async (req, res) => {
       })
     }
 
-    console.log(`📧 Newsletter unsubscribed: ${email}`)
-    
-    res.json({ 
-      success: true, 
-      message: 'Successfully unsubscribed from newsletter' 
-    })
+      console.log(`📧 Newsletter unsubscribed: ${email}`)
+      
+      res.json({ 
+        success: true, 
+        message: 'Successfully unsubscribed from newsletter' 
+      })
 
   } catch (error) {
     console.error('Newsletter unsubscribe error:', error)
@@ -651,7 +753,7 @@ app.get('/api/newsletter/verify', async (req, res) => {
 app.get('/api/newsletter/subscribers', async (req, res) => {
   try {
     const result = await newsletterDB.getAllSubscribers()
-    
+
     res.json({
       success: true,
       subscribers: result.subscribers,
@@ -997,8 +1099,8 @@ app.use('/api', (req, res, next) => {
 const startServer = async () => {
   try {
     await initializeApp();
-    
-    app.listen(PORT, () => {
+
+app.listen(PORT, () => {
       console.log(`🚀 GenPlay Proxy Server running on port ${PORT}`);
       console.log(`📧 Newsletter system ready`);
       console.log(`🗄️ Database: PostgreSQL (Generic Application Database)`);
