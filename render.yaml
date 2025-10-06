@@ -31,9 +31,13 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: FRONTEND_URL
+        value: https://genplay-studio-3d.onrender.com
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
         sync: false
+      - key: EMAIL_FROM
+        value: info@genplay.io
       - key: DATABASE_URL
         sync: false 

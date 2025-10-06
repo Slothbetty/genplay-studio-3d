@@ -7,9 +7,20 @@ import { Newsletter } from './Newsletter';
 import { Footer } from './Footer';
 
 export function LandingPage({ onNavigateToApp, onNavigateToAbout }) {
+  const handleNewsletterClick = () => {
+    const newsletterSection = document.getElementById('newsletter');
+    if (newsletterSection) {
+      newsletterSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <Header onNavigateToApp={onNavigateToApp} onNavigateToAbout={onNavigateToAbout} />
+      <Header 
+        onNavigateToApp={onNavigateToApp} 
+        onNavigateToAbout={onNavigateToAbout}
+        onNewsletterClick={handleNewsletterClick}
+      />
       <main>
         <Hero onNavigateToApp={onNavigateToApp} />
         <Gallery onNavigateToApp={onNavigateToApp} />
