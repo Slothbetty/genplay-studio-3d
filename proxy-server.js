@@ -45,7 +45,7 @@ const sendConfirmationEmail = async (email, verificationToken) => {
     throw new Error('Email service not configured')
   }
 
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -151,7 +151,7 @@ const sendWelcomeEmail = async (email) => {
     throw new Error('Email service not configured')
   }
 
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -306,6 +306,32 @@ app.get('/api/db/info', async (req, res) => {
     });
   }
 })
+
+// Check database tables endpoint
+app.get('/api/db/tables', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    
+    const tables = result.rows.map(row => row.table_name);
+    
+    res.json({
+      success: true,
+      tables: tables,
+      count: tables.length
+    });
+  } catch (error) {
+    console.error('Database tables error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get database tables',
+      message: error.message 
+    });
+  }
+});
 
 // Proxy for model downloads (must come BEFORE main proxy middleware)
 app.get('/api/download', async (req, res) => {
@@ -767,7 +793,7 @@ app.post('/api/newsletter/gmail-group', async (req, res) => {
       })
     }
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
