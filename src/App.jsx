@@ -10,6 +10,7 @@ import StlViewer from './components/StlViewer'
 import { tripo3DService } from './services/api'
 import { LandingPage } from './components/landing/LandingPage'
 import { AboutPage } from './components/AboutPage'
+import { NewsletterConfirmation } from './components/NewsletterConfirmation'
 
 function App() {
   const [currentView, setCurrentView] = useState('landing') // 'landing', 'app', or 'about'
@@ -60,6 +61,8 @@ function App() {
         setCurrentView('app')
       } else if (path === '/about') {
         setCurrentView('about')
+      } else if (path.startsWith('/newsletter/confirm')) {
+        setCurrentView('newsletter-confirm')
       } else {
         setCurrentView('landing')
       }
@@ -293,13 +296,17 @@ function App() {
     window.history.pushState({}, '', '/about')
   }
 
-  // Show landing page, about page, or app based on current view
+  // Show landing page, about page, newsletter confirmation, or app based on current view
   if (currentView === 'landing') {
     return <LandingPage onNavigateToApp={navigateToApp} onNavigateToAbout={navigateToAbout} />
   }
 
   if (currentView === 'about') {
     return <AboutPage onNavigateToLanding={navigateToLanding} />
+  }
+
+  if (currentView === 'newsletter-confirm') {
+    return <NewsletterConfirmation />
   }
 
   return (

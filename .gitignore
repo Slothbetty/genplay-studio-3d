@@ -17,6 +17,9 @@ build/
 .env.test.local
 .env.production.local
 
+# PowerShell scripts with credentials
+start-proxy.ps1
+
 # IDE and editor files
 .vscode/
 .idea/

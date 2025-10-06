@@ -1,5 +1,4 @@
 import React from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // API configuration following the same pattern as services/api.js
 const isDevelopment = import.meta.env.DEV
@@ -12,15 +11,15 @@ const getApiBaseUrl = () => {
 }
 
 export function NewsletterConfirmation() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = React.useState(true);
   const [verificationStatus, setVerificationStatus] = React.useState(null);
   const [message, setMessage] = React.useState('');
 
   React.useEffect(() => {
     const verifyEmail = async () => {
-      const token = searchParams.get('token');
+      // Get token from URL parameters using vanilla JavaScript
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
       
       if (!token) {
         setVerificationStatus('error');
@@ -50,14 +49,14 @@ export function NewsletterConfirmation() {
     };
 
     verifyEmail();
-  }, [searchParams]);
+  }, []);
 
   const handleGoHome = () => {
-    navigate('/');
+    window.location.href = '/';
   };
 
   const handleResubscribe = () => {
-    navigate('/');
+    window.location.href = '/';
   };
 
   return (
