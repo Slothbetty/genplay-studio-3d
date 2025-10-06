@@ -540,33 +540,21 @@ app.post('/api/newsletter/unsubscribe', async (req, res) => {
       })
     }
 
-    const newsletterData = readNewsletterData()
-    
-    // Find and update subscriber status
-    const subscriberIndex = newsletterData.subscribers.findIndex(
-      sub => sub.email.toLowerCase() === email.toLowerCase()
-    )
+    // Unsubscribe user using database
+    const result = await newsletterDB.unsubscribeUser(email.toLowerCase())
 
-    if (subscriberIndex === -1) {
+    if (!result) {
       return res.status(404).json({ 
         message: 'Email not found in our newsletter list' 
       })
     }
 
-    // Mark as unsubscribed
-    newsletterData.subscribers[subscriberIndex].status = 'unsubscribed'
-    newsletterData.subscribers[subscriberIndex].unsubscribedAt = new Date().toISOString()
-
-    if (writeNewsletterData(newsletterData)) {
-      console.log(`📧 Newsletter unsubscribed: ${email}`)
-      
-      res.json({ 
-        success: true, 
-        message: 'Successfully unsubscribed from newsletter' 
-      })
-    } else {
-      throw new Error('Failed to update subscription data')
-    }
+    console.log(`📧 Newsletter unsubscribed: ${email}`)
+    
+    res.json({ 
+      success: true, 
+      message: 'Successfully unsubscribed from newsletter' 
+    })
 
   } catch (error) {
     console.error('Newsletter unsubscribe error:', error)
@@ -588,42 +576,29 @@ app.get('/api/newsletter/verify', async (req, res) => {
       })
     }
 
-    const newsletterData = readNewsletterData()
-    
     // Find subscriber with matching token
-    const subscriberIndex = newsletterData.subscribers.findIndex(
-      sub => sub.verificationToken === token && sub.status === 'pending'
-    )
+    const subscriber = await newsletterDB.getSubscriberByToken(token)
 
-    if (subscriberIndex === -1) {
+    if (!subscriber) {
       return res.status(404).json({ 
         error: 'Invalid or expired verification token' 
       })
     }
-
-    const subscriber = newsletterData.subscribers[subscriberIndex]
     
     // Check if token has expired
     const now = new Date()
-    const expiryDate = new Date(subscriber.verificationExpiry)
+    const expiryDate = new Date(subscriber.verification_expiry)
     
     if (now > expiryDate) {
-      // Remove expired subscription
-      newsletterData.subscribers.splice(subscriberIndex, 1)
-      writeNewsletterData(newsletterData)
-      
       return res.status(400).json({ 
         error: 'Verification token has expired. Please subscribe again.' 
       })
     }
 
     // Activate subscription
-    newsletterData.subscribers[subscriberIndex].status = 'active'
-    newsletterData.subscribers[subscriberIndex].verifiedAt = new Date().toISOString()
-    delete newsletterData.subscribers[subscriberIndex].verificationToken
-    delete newsletterData.subscribers[subscriberIndex].verificationExpiry
+    const result = await newsletterDB.verifySubscriber(subscriber.email)
 
-    if (writeNewsletterData(newsletterData)) {
+    if (result) {
       console.log(`✅ Newsletter subscription confirmed: ${subscriber.email}`)
       
       // Send welcome email
@@ -649,34 +624,12 @@ app.get('/api/newsletter/verify', async (req, res) => {
 // Get newsletter subscribers (admin endpoint)
 app.get('/api/newsletter/subscribers', async (req, res) => {
   try {
-    const newsletterData = readNewsletterData()
+    const result = await newsletterDB.getAllSubscribers()
     
-    // Return all subscribers with their status for admin view
-    const allSubscribers = newsletterData.subscribers.map(sub => ({
-      email: sub.email,
-      subscribedAt: sub.subscribedAt,
-      status: sub.status,
-      verifiedAt: sub.verifiedAt || null,
-      unsubscribedAt: sub.unsubscribedAt || null
-    }))
-
-    const activeSubscribers = newsletterData.subscribers.filter(
-      sub => sub.status === 'active'
-    )
-
-    const pendingSubscribers = newsletterData.subscribers.filter(
-      sub => sub.status === 'pending'
-    )
-
     res.json({
       success: true,
-      counts: {
-        total: allSubscribers.length,
-        active: activeSubscribers.length,
-        pending: pendingSubscribers.length,
-        unsubscribed: allSubscribers.length - activeSubscribers.length - pendingSubscribers.length
-      },
-      subscribers: allSubscribers
+      subscribers: result.subscribers,
+      counts: result.counts
     })
 
   } catch (error) {
@@ -700,10 +653,7 @@ app.post('/api/newsletter/send', async (req, res) => {
     }
 
     // Get active subscribers
-    const newsletterData = readNewsletterData()
-    const activeSubscribers = newsletterData.subscribers.filter(
-      sub => sub.status === 'active'
-    )
+    const activeSubscribers = await newsletterDB.getActiveSubscribers()
 
     if (activeSubscribers.length === 0) {
       return res.status(400).json({ 
@@ -809,10 +759,7 @@ app.post('/api/newsletter/gmail-group', async (req, res) => {
       })
     }
 
-    const newsletterData = readNewsletterData()
-    const activeSubscribers = newsletterData.subscribers.filter(
-      sub => sub.status === 'active'
-    )
+    const activeSubscribers = await newsletterDB.getActiveSubscribers()
 
     if (activeSubscribers.length === 0) {
       return res.status(400).json({ 
