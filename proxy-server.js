@@ -1,14 +1,35 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv'
+import fs from 'fs'
+
+// Load environment variables from different files based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'development' ? '.env.development' : '.env'
+
+// Try to load the specific environment file first
+if (fs.existsSync(envFile)) {
+  console.log(`📁 Loading environment from: ${envFile}`)
+  dotenv.config({ path: envFile })
+} else if (fs.existsSync('.env')) {
+  console.log('📁 Loading environment from: .env')
+  dotenv.config({ path: '.env' })
+} else {
+  console.log('⚠️  No environment file found, using system environment variables')
+}
+
+// Debug: Check if DATABASE_URL is loaded
+console.log(`🔍 DATABASE_URL loaded: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`)
+if (process.env.DATABASE_URL) {
+  console.log(`🔍 DATABASE_URL starts with: ${process.env.DATABASE_URL.substring(0, 20)}...`)
+}
+
+// Now import other modules after environment variables are loaded
 import express from 'express'
 import cors from 'cors'
 import { createProxyMiddleware } from 'http-proxy-middleware'
-import dotenv from 'dotenv'
 import nodemailer from 'nodemailer'
-import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { initializeDatabase, newsletterDB, db } from './src/database/index.js'
-
-dotenv.config()
+import { db, initializeDatabase, newsletterDB } from './src/database/index.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -18,18 +39,24 @@ const initializeApp = async () => {
   try {
     if (process.env.DATABASE_URL) {
       // Use PostgreSQL database (both production and development)
-      const dbConnected = await db.testConnection();
-      if (dbConnected) {
-        console.log('🗄️ Using PostgreSQL database for application storage');
-        await initializeDatabase();
-      } else {
-        throw new Error('Database connection failed');
+      try {
+        const dbConnected = await db.testConnection();
+        if (dbConnected) {
+          console.log('🗄️ Using PostgreSQL database for application storage');
+          await initializeDatabase();
+        } else {
+          throw new Error('Database connection failed');
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Database connection failed, running in development mode without database');
+        console.warn('⚠️ Some features (newsletter, user data) will not be available');
+        console.warn('⚠️ Database error:', dbError.message);
+        // Continue without database for development
       }
     } else {
       // No database URL provided
-      console.error('❌ DATABASE_URL environment variable is required');
-      console.error('Please set DATABASE_URL in your .env file or environment variables');
-      process.exit(1);
+      console.warn('⚠️ No DATABASE_URL provided, running in development mode without database');
+      console.warn('⚠️ Some features (newsletter, user data) will not be available');
     }
   } catch (error) {
     console.error('❌ App initialization error:', error);
@@ -704,12 +731,20 @@ app.get('/api/newsletter/verify', async (req, res) => {
       })
     }
 
-    // Find subscriber with matching token
-    const subscriber = await newsletterDB.getSubscriberByToken(token)
+    // Find subscriber with matching token (any status)
+    const subscriber = await newsletterDB.getSubscriberByTokenAnyStatus(token)
 
     if (!subscriber) {
       return res.status(404).json({ 
         error: 'Invalid or expired verification token' 
+      })
+    }
+
+    // Check if already verified (idempotent verification)
+    if (subscriber.status === 'active') {
+      return res.json({ 
+        success: true, 
+        message: 'Email already verified! You are already subscribed to our newsletter.' 
       })
     }
     

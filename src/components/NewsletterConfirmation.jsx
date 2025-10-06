@@ -14,9 +14,15 @@ export function NewsletterConfirmation() {
   const [isVerifying, setIsVerifying] = React.useState(true);
   const [verificationStatus, setVerificationStatus] = React.useState(null);
   const [message, setMessage] = React.useState('');
+  const hasVerifiedRef = React.useRef(false);
 
   React.useEffect(() => {
     const verifyEmail = async () => {
+      // Prevent double execution in React StrictMode
+      if (hasVerifiedRef.current) {
+        return;
+      }
+      hasVerifiedRef.current = true;
       // Get token from URL parameters using vanilla JavaScript
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get('token');

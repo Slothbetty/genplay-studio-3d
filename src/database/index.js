@@ -1,7 +1,16 @@
 import pkg from 'pg';
+import dotenv from 'dotenv';
 const { Pool } = pkg;
 
+// Load environment variables first
+dotenv.config();
+
 // Database connection
+console.log('🔍 Database connection string:', process.env.DATABASE_URL ? 'Present' : 'Missing')
+if (process.env.DATABASE_URL) {
+  console.log('🔍 Connection string starts with:', process.env.DATABASE_URL.substring(0, 30) + '...')
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -138,10 +147,17 @@ export const newsletterDB = {
     return result.rows[0];
   },
 
-  // Get subscriber by verification token
+  // Get subscriber by verification token (pending only)
   async getSubscriberByToken(token) {
     const query = 'SELECT * FROM newsletter_subscribers WHERE verification_token = $1 AND status = $2';
     const result = await pool.query(query, [token, 'pending']);
+    return result.rows[0];
+  },
+
+  // Get subscriber by verification token (any status)
+  async getSubscriberByTokenAnyStatus(token) {
+    const query = 'SELECT * FROM newsletter_subscribers WHERE verification_token = $1';
+    const result = await pool.query(query, [token]);
     return result.rows[0];
   },
 
@@ -151,8 +167,6 @@ export const newsletterDB = {
       UPDATE newsletter_subscribers 
       SET status = 'active', 
           verified_at = CURRENT_TIMESTAMP,
-          verification_token = NULL,
-          verification_expiry = NULL,
           updated_at = CURRENT_TIMESTAMP
       WHERE email = $1 AND status = 'pending'
       RETURNING *
