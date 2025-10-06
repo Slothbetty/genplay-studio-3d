@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { initializeDatabase, newsletterDB, db } from './src/database/index.js'
 
 dotenv.config()
@@ -498,7 +499,6 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     }
 
     // Generate verification token
-    const crypto = require('crypto')
     const verificationToken = crypto.randomBytes(32).toString('hex')
     const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
